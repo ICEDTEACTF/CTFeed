@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import discord
-from discord.ext import tasks
+from discord.ext import tasks, commands
 import logging
 import os
 
@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("discord.client").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
-bot = discord.Client(intents=discord.Intents.default())
+bot = commands.Bot(intents=discord.Intents.default())
 
 known_events = load_known_events()
 
@@ -96,6 +96,23 @@ def main():
 
     print("Start CTF Bot...")
     bot.run(DISCORD_BOT_TOKEN)
+
+
+@bot.slash_command(name = "create_ctf_channel", description = "Create a CTF channel in the CTF category")
+async def create_CTF_channel(ctx, channel_name:str):
+    category_name = "CTF"
+    guild = ctx.guild
+    category = discord.utils.get(ctx.guild.categories, name=category_name)
+
+    if category is None:
+        await ctx.send(f"Category '{category_name}' not found.")
+        return
+
+    try:
+        new_channel = await guild.create_text_channel(channel_name, category=category)
+        await ctx.send(f"Channel '{new_channel.name}' created in category '{category_name}'.")
+    except Exception as e:
+        await ctx.send(f"Failed to create channel: {e}")
 
 
 if __name__ == "__main__":
