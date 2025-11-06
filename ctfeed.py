@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import discord
+from discord import embeds
 from discord.ext import tasks, commands
 import logging
 import os
@@ -14,10 +15,17 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("discord.client").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
-bot = commands.Bot(intents=discord.Intents.default())
+intents = discord.Intents.default()
+intents.members = True
+intents.guilds = True
+intents.reactions = True
+intents.message_content = True
+
+bot = commands.Bot(intents=intents)
 
 known_events = load_known_events()
 
+emoji = "🚩"
 
 @bot.event
 async def on_ready():
@@ -108,12 +116,48 @@ async def create_CTF_channel(ctx, channel_name:str):
         await ctx.send(f"Category '{category_name}' not found.")
         return
 
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        ctx.author: discord.PermissionOverwrite(view_channel=True)
+    }
+
     try:
-        new_channel = await guild.create_text_channel(channel_name, category=category)
-        await ctx.send(f"Channel '{new_channel.name}' created in category '{category_name}'.")
+        new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
+        msg = await new_channel.send(
+            embed = discord.Embed(
+                title=f"{ctx.author.display_name} 發起了 {channel_name}！",
+            )
+        )
+
+        public_msg = await ctx.send(
+            embed = discord.Embed(
+                title=f"新CTF頻道創建{channel_name}",
+                description=f"加入請按下面的Emoji{emoji}"
+            )
+        )
+
+        await public_msg.add_reaction(emoji)
+        bot.ctf_join_message_id = public_msg.id
+        bot.ctf_channel = new_channel
     except Exception as e:
         await ctx.send(f"Failed to create channel: {e}")
 
+@bot.event
+async def on_raw_reaction_add(payload):
+    if payload.message_id != getattr(bot, "ctf_join_message_id", None):
+        return
+
+    if str(payload.emoji) != emoji:
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    member = guild.get_member(payload.user_id)
+    if member.bot:
+        return
+
+    channel = bot.ctf_channel
+    await channel.set_permissions(member, view_channel=True)
+    print(f"{member} 已加入 {channel.name}")
 
 if __name__ == "__main__":
     main()
