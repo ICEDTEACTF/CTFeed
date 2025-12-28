@@ -2,13 +2,13 @@ import discord
 import pytz
 import logging
 from datetime import datetime
-from src.ctf_api import fetch_team_info
-from src.country_flags import get_country_info
+from src.utils.ctf_api import fetch_team_info
+from src.utils.country_flags import get_country_info
 
 logger = logging.getLogger(__name__)
 
 
-async def create_event_embed(event):
+async def create_event_embed(event, title:str):
     start_time_utc = datetime.fromisoformat(event["start"].replace("Z", "+00:00"))
     finish_time_utc = datetime.fromisoformat(event["finish"].replace("Z", "+00:00"))
 
@@ -16,7 +16,6 @@ async def create_event_embed(event):
     start_time_taipei = start_time_utc.astimezone(taipei_tz)
     finish_time_taipei = finish_time_utc.astimezone(taipei_tz)
 
-    title = "有新的 CTF 競賽！"
     color = discord.Color.green()
 
     organizer_info = []

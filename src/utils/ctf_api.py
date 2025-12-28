@@ -1,30 +1,41 @@
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
 import aiohttp
 import logging
-from datetime import datetime, timedelta
-from src.config import CTFTIME_API_URL, TEAM_API_URL, SEARCH_DAYS
+
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-async def fetch_ctf_events():
+async def fetch_ctf_events(event_id:Optional[int]=None) -> List[Dict[str, Any]]:
     params = {
         "limit": 20,
         "start": int(datetime.now().timestamp()),
-        "finish": int((datetime.now() + timedelta(days=SEARCH_DAYS)).timestamp()),
+        "finish": int((datetime.now() + timedelta(days=settings.CTFTIME_SEARCH_DAYS)).timestamp()),
     }
-
+    
+    url = settings.CTFTIME_API_URL
+    if not (event_id is None):
+        # for example: "https://ctftime.org/api/v1/events/2345"
+        url = f"{url}{event_id}/"
+    
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(CTFTIME_API_URL, params=params) as response:
+            async with session.get(url, params=params) as response:
                 if response.status == 200:
+                    if not (event_id is None):
+                        return [await response.json()]
+                    
                     return await response.json()
     except Exception as e:
         logger.error(f"API error: {e}")
+    
     return []
 
 
 async def fetch_team_info(team_id):
-    url = f"{TEAM_API_URL}{team_id}/"
+    url = f"{settings.TEAM_API_URL}{team_id}/"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
