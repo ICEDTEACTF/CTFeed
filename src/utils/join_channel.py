@@ -9,6 +9,7 @@ from src.database.database import get_db
 from src import crud
 from src.utils.ctf_api import fetch_ctf_events
 from src.utils.embed_creator import create_event_embed
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +60,11 @@ async def join_channel(
             event_api:Event = events_api[0]
             
             # create channel
-            category_name = "Incoming/Running CTF"
+            category_id = settings.CTF_CHANNEL_CATETORY_ID
             guild = interaction.guild
-            category = discord.utils.get(interaction.guild.categories, name=category_name)
+            category = discord.utils.get(interaction.guild.categories, id=category_id)
             if category is None:
-                await interaction.followup.send(content=f"Category '{category_name}' not found.", ephemeral=True)
+                await interaction.followup.send(content=f"Category id={category_id} not found", ephemeral=True)
                 return
 
             overwrites = {
