@@ -12,7 +12,7 @@ async def fetch_ctf_events(event_id:Optional[int]=None) -> List[Dict[str, Any]]:
     params = {
         "limit": 20,
         "start": int(datetime.now().timestamp()),
-        "finish": int((datetime.now() + timedelta(days=settings.CTFTIME_SEARCH_DAYS)).timestamp()),
+        #"finish": int((datetime.now() + timedelta(days=settings.CTFTIME_SEARCH_DAYS)).timestamp()),
     }
     
     url = settings.CTFTIME_API_URL

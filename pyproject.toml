@@ -14,6 +14,8 @@ dependencies = [
     "sqlalchemy>=2.0.45",
     "aiosqlite>=0.22.1",
     "pydantic-settings>=2.12.0",
+    "fastapi>=0.128.0",
+    "uvicorn>=0.40.0",
 ]
 
 [dependency-groups]

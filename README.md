@@ -74,7 +74,9 @@ Then edit the `.env` file with your specific settings. Focus on these key variab
 |----------|-------------|---------|
 | `DISCORD_BOT_TOKEN` | Your Discord bot token | `MTIzNDU2Nzg5...` |
 | `CHECK_INTERVAL_MINUTES` | How often to check for new CTFs | `30` (default) |
-| `ANNOUNCEMENT_CHANNEL_ID` | Channel name for announcements | `ctf-announcements` |
+| `ANNOUNCEMENT_CHANNEL_ID` | Channel id for announcements | `911612541829009418` |
+| `CTF_CHANNEL_CATETORY_ID` | Category id for CTF event channel creations | `1454642939559940329` |
+| `TIMEZONE` | time zone for displaying | `Asia/Taipei` (default) |
 
 *Other configuration options can remain at their default values.*
 
@@ -119,4 +121,4 @@ Once running, the bot will:
 
 1. Automatically check CTFtime.org for new CTF events
 2. Post announcements in your designated Discord channel
-3. Use `data/known_events.json` to track announced events and avoid duplicates
+3. Use `data/database.db` to track announced events, avoid duplicates, record CTF event channel, and more.

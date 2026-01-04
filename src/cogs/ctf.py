@@ -112,11 +112,11 @@ class CreateCustomChannelModal(discord.ui.Modal):
         channel_name = self.children[0].value
     
         # find category
-        category_name = "Incoming/Running CTF"
+        category_id = settings.CTF_CHANNEL_CATETORY_ID
         guild = interaction.guild
-        category = discord.utils.get(interaction.guild.categories, name=category_name)
+        category = discord.utils.get(interaction.guild.categories, id=category_id)
         if category is None:
-            await interaction.followup.send(content=f"Category '{category_name}' not found.", ephemeral=True)
+            await interaction.followup.send(content=f"Category id={category_id} not found", ephemeral=True)
             return
     
         # create channel
@@ -205,17 +205,26 @@ class CTF(commands.Cog):
             known_events:List[Event] = await crud.read_event(session)
         
         # embed
+        time_now = datetime.now().timestamp()
+        
         embed = discord.Embed(
             title=f"{settings.EMOJI} CTF events tracked",
             color=discord.Color.green()
         )
         for event in known_events:
+            mark = ""
+            if not(event.channel_id is None):
+                mark += "[⭐️]"
+            if event.start <= time_now and event.finish >= time_now:
+                mark += "[🏃]"
+            
             embed.add_field(
-                name=f"[id={event.event_id}] {event.title}",
+                name=f"{mark}[id={event.event_id}] {event.title}",
                 value=f"start at {datetime.fromtimestamp(event.start).astimezone(ZoneInfo(settings.TIMEZONE))}\n\
                 finish at {datetime.fromtimestamp(event.finish).astimezone(ZoneInfo(settings.TIMEZONE))}",
                 inline=False
             )
+        embed.set_footer(text="[🏃] running ctf\n[⭐️] channel created")
         
         await ctx.response.send_message(embed=embed, view=CTFMenuView(self.bot), ephemeral=True)
 

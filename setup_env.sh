@@ -112,10 +112,23 @@ fi
 echo ""
 echo "Announcement Channel ID:"
 echo "   The Discord channel where CTF announcements will be posted"
-echo "   The channel name that on your server"
+echo "   The channel id that on your server"
 while true; do
-    read -p "   Paste your Discord Channel Name: " ANNOUNCEMENT_CHANNEL_NAME
-    if [ -n "$ANNOUNCEMENT_CHANNEL_NAME" ]; then
+    read -p "   Paste your Discord Channel ID: " ANNOUNCEMENT_CHANNEL_ID
+    if [ -n "$ANNOUNCEMENT_CHANNEL_ID" ]; then
+        break
+    else
+        echo "   Error: Discord Channel Name cannot be empty. Please try again."
+    fi
+done
+
+echo ""
+echo "CTF Channel Category ID:"
+echo "   The Discord category where CTF channels will be created"
+echo "   The category id that on your server"
+while true; do
+    read -p "   Paste your Discord Category ID: " CTF_CHANNEL_CATETORY_ID
+    if [ -n "$CTF_CHANNEL_CATETORY_ID" ]; then
         break
     else
         echo "   Error: Discord Channel Name cannot be empty. Please try again."
@@ -135,7 +148,8 @@ echo ""
 echo "Please review your configuration:"
 echo "   Discord Bot Token: ${DISCORD_BOT_TOKEN:0:30}********** (hidden)"
 echo "   Check Interval: $CHECK_INTERVAL_MINUTES minutes"
-echo "   Announcement Channel Name: $ANNOUNCEMENT_CHANNEL_NAME"
+echo "   Announcement Channel ID: $ANNOUNCEMENT_CHANNEL_ID"
+echo "   CTF Channel Category ID: $CTF_CHANNEL_CATETORY_ID"
 echo "   Time Zone: $TIMEZONE"
 echo ""
 
@@ -166,7 +180,8 @@ DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
 
 # CTF Tracking Configuration
 CHECK_INTERVAL_MINUTES=$CHECK_INTERVAL_MINUTES
-ANNOUNCEMENT_CHANNEL_NAME=$ANNOUNCEMENT_CHANNEL_NAME
+ANNOUNCEMENT_CHANNEL_ID=$ANNOUNCEMENT_CHANNEL_ID
+CTF_CHANNEL_CATETORY_ID=$CTF_CHANNEL_CATETORY_ID
 
 # Misc
 TIMEZONE="$TIMEZONE"
