@@ -13,6 +13,7 @@ from src.backend.config import update_config_cache
 from src import crud
 from src import schema
 from src import bot
+from src import router
 
 # logging
 logger = logging.getLogger("uvicorn")
@@ -25,7 +26,7 @@ async def lifespan(app:FastAPI):
     try:
         await database.init_db()
     except Exception as e:
-        logger.error(f"fail to initialize database: {str(e)}")
+        logger.critical(f"fail to initialize database: {str(e)}")
         raise
     
     ## initialize config
@@ -34,7 +35,7 @@ async def lifespan(app:FastAPI):
             async with session.begin():
                 config = await crud.create_or_update_config(session)
     except Exception as e:
-        logger.error(f"fail to initialize Config in database: {str(e)}")
+        logger.critical(f"fail to initialize Config in database: {str(e)}")
         raise
     await update_config_cache(config)
     
@@ -72,6 +73,7 @@ app.add_middleware(
 )
 
 # router
+app.include_router(router.auth_router)
 
 # index
 @app.get("/")

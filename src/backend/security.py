@@ -20,7 +20,7 @@ async def check_administrator(member_id:int) -> bool:
     bot = await get_bot()
     guild = bot.get_guild(settings.GUILD_ID)
     if guild is None:
-        logger.error(f"Guild (id={settings.GUILD_ID}) not found")
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
         return False
     
     # check whether the member is in the guild
@@ -33,6 +33,7 @@ async def check_administrator(member_id:int) -> bool:
         return False
     
     return True
+
 
 # for discord
 async def discord_check_administrator(interaction:discord.Interaction) -> bool:

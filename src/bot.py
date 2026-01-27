@@ -37,7 +37,7 @@ def load_cogs():
             bot.load_extension(extension_name)
             logger.info(f"{extension_name} loaded")
         except Exception as e:
-            logger.error(f"fail to load {extension_name}: {str(e)}")
+            logger.critical(f"fail to load {extension_name}: {str(e)}")
 
 
 # startup and shutdown

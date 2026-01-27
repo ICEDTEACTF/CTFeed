@@ -63,7 +63,7 @@ async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.Config
     # get guild
     guild = bot.get_guild(settings.GUILD_ID)
     if guild is None:
-        logger.error(f"Guild (id={settings.GUILD_ID}) not found")
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
         raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
     
     # get config
@@ -135,7 +135,7 @@ async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
     # get guild
     guild = bot.get_guild(settings.GUILD_ID)
     if guild is None:
-        logger.error(f"Guild (id={settings.GUILD_ID}) not found")
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
         raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
     
     # check arguments
@@ -171,8 +171,8 @@ async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
                     **arg
                 )
     except Exception as e:
-        logger.error(f"fail to initialize Config in database: {str(e)}")
-        raise HTTPException(500, detail=f"fail to initialize Config in database: {str(e)}")
+        logger.error(f"fail to update Config in database: {str(e)}")
+        raise HTTPException(500, detail=f"fail to update Config in database: {str(e)}")
     
     # update cache
     await update_config_cache(config)
