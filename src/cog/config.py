@@ -77,6 +77,8 @@ class ConfigMenu(discord.ui.View):
             )
             self.edit.callback = self.on_edit
             self.add_item(self.edit)
+        
+        return
 
 
     async def on_change_page(self, interaction:discord.Interaction):
@@ -123,25 +125,15 @@ class ConfigMenu(discord.ui.View):
             await interaction.response.send_message("Invalid argument", ephemeral=True)
             return
         
-        # check whether self.state is a valid config
-        try:
-            cinfo = await config.read_config(self.bot, self.state)
-        except Exception as e:
-            await interaction.response.send_message(f"Invalid config (key={self.state})", ephemeral=True)
-            return
-        
-        # check whether the value points to a valid object in Discord
-        _, obj = await config.check_config_valid_obj(interaction.guild, self.state, value)
-        if obj is None:
-            await interaction.response.send_message("Invalid argument", ephemeral=True)
-            return
-        
         # update
         try:
-            await config.update_config(self.state, value)
+            await config.update_config(self.bot, (self.state, value))
         except Exception as e:
             await interaction.response.send_message(f"fail to update config (key={self.state}): {str(e)}", ephemeral=True)
             return
+        
+        # logging
+        logger.info(f"User {interaction.user.name} (id={interaction.user.id}) updated Config (key={self.state}) to value={value}")
         
         # return
         embed = await self.build_embed_and_view()

@@ -34,7 +34,7 @@ async def check_config_valid_obj(guild:discord.Guild, key:str, value:Any) -> Tup
     _ = None
     if config_info.config_type == model.ConfigType.CHANNEL and \
             (_ := guild.get_channel(value)) is not None and \
-            not isinstance(_, discord.CategoryChannel):
+            isinstance(_, discord.TextChannel):
         msg = f"Channel: {_.name}\nID: (value={value})"
     elif config_info.config_type == model.ConfigType.CATEGORY and \
             (_ := get_category(guild, value)) is not None:
@@ -77,15 +77,16 @@ async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.Config
             try:
                 cache_config[key] = cinfo.data_type(getattr(settings, key))
             except Exception as e:
-                logger.warning(f"fail to get config (key={key}) from settings (cache): {str(e)}")
-                raise HTTPException(500, f"fail to get config (key={key}) from settings (cache): {str(e)}")
+                errmsg = f"fail to get config (key={key}) from settings (cache) (maybe src.database.model.Config, src.database.model.config_info and src.config are out of sync): {str(e)}"
+                logger.critical(errmsg)
+                raise HTTPException(500, errmsg)
         else:
             for k in model.config_info:
                 try:
                     cinfo = model.config_info[k]
                     cache_config[k] = cinfo.data_type(getattr(settings, k))
                 except Exception as e:
-                    logger.warning(f"fail to get config (key={k}) from settings (cache): {str(e)}")
+                    logger.critical(f"fail to get config (key={k}) from settings (cache) (maybe src.database.model.Config, src.database.model.config_info and src.config are out of sync): {str(e)}")
     
     # get details
     configs = []
@@ -112,31 +113,68 @@ async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.Config
     )
 
 
-async def update_config(name:str, value:Any):
+async def update_config_cache(config:model.Config):
+    async with settings_lock:
+        for _k in model.config_info:
+            try:
+                _v = getattr(config, _k.lower())
+                setattr(settings, _k, _v)
+            except Exception as e:
+                logger.critical(f"fail to update cache of config (key={_k}) (maybe src.database.model.Config, src.database.model.config_info and src.config are out of sync): {str(e)}")
+
+
+async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
     """
     Update Config in database and cache.
     
-    :params name:
-    :params value:
+    :params bot:
+    :params kv: Tuple (key, value)
     
     :raise: HTTPException
     """
+    # get guild
+    guild = bot.get_guild(settings.GUILD_ID)
+    if guild is None:
+        logger.error(f"Guild (id={settings.GUILD_ID}) not found")
+        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    
+    # check arguments
+    arg = {}
+    if kv is not None:
+        if len(kv) != 2:
+            raise HTTPException(400)
+        k, v = kv
+        
+        # check whether k is a valid config
+        cinfo = model.config_info.get(k, None)
+        if cinfo is None:
+            raise HTTPException(400)
+        
+        # check whether v is valid and points to a valid object in Discord
+        try:
+            v = cinfo.data_type(v)
+        except Exception:
+            raise HTTPException(400)
+        _, obj = await check_config_valid_obj(guild, k, v)
+        if obj is None:
+            raise HTTPException(400)
+        
+        # success
+        arg[k.lower()] = v
+    
+    # update database
     try:
         async with database.with_get_db() as session:
             async with session.begin():
                 config = await crud.create_or_update_config(
                     session,
-                    **{name.lower(): value}
+                    **arg
                 )
     except Exception as e:
         logger.error(f"fail to initialize Config in database: {str(e)}")
         raise HTTPException(500, detail=f"fail to initialize Config in database: {str(e)}")
     
-    async with settings_lock:
-        settings.ANNOUNCEMENT_CHANNEL_ID = config.announcement_channel_id
-        settings.CTF_CHANNEL_CATEGORY_ID = config.ctf_channel_category_id
-        settings.ARCHIVE_CATEGORY_ID = config.archive_category_id
-        settings.PM_ROLE_ID = config.pm_role_id
-        settings.MEMBER_ROLE_ID = config.member_role_id
+    # update cache
+    await update_config_cache(config)
     
     return

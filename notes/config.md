@@ -16,9 +16,9 @@
     - 這五個項目並沒有啥狀態機，所以**在資料庫不需要加鎖**
 - Config 會 cache 在記憶體 (存在 settings)
 - **存取這五個項目的 cache 需要加鎖**
+- 基本上以 ``src.database.model.config_info`` 為準，``src.database.model.Config``、``src.config.Settings`` 跟進，三者需要同步
 - 添加或刪除 Config 項目時需要處理以下地方
     - src.database.model - 添加 Column、註冊 Config 到 ``config_info``
     - src.config (Settings) - 添加``settings``(cache)成員、修改 ``settings_lock``註解
     - src.crud.config - 添加``create_or_update_config``參數
-    - src.backend.config - ``update_config`` 同步 cache 那邊要改
-    - ctfeed.py - ``lifespan`` 裡面也有同步 cache 要改
+- Config 在 discord 端或是 api 端做 log (不在 backend，因為 backend 沒有拿使用者資訊)

@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.config import settings, settings_lock
+from src.config import settings
 from src.database import database
+from src.backend.config import update_config_cache
 from src import crud
 from src import schema
 from src import bot
@@ -35,13 +36,7 @@ async def lifespan(app:FastAPI):
     except Exception as e:
         logger.error(f"fail to initialize Config in database: {str(e)}")
         raise
-    
-    async with settings_lock:
-        settings.ANNOUNCEMENT_CHANNEL_ID = config.announcement_channel_id
-        settings.CTF_CHANNEL_CATEGORY_ID = config.ctf_channel_category_id
-        settings.ARCHIVE_CATEGORY_ID = config.archive_category_id
-        settings.PM_ROLE_ID = config.pm_role_id
-        settings.MEMBER_ROLE_ID = config.member_role_id
+    await update_config_cache(config)
     
     ## start discord bot
     await bot.start_bot()
