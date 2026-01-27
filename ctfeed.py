@@ -1,64 +1,87 @@
 #!/usr/bin/env python3
 
+from contextlib import asynccontextmanager
 import logging
-import asyncio
-import glob
-import pathlib
 
-import discord
-from discord.ext import commands
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
-from src.config import settings
-from src.database.database import init_db
+from src.config import settings, settings_lock
+from src.database import database
+from src import crud
+from src import schema
+from src import bot
 
 # logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+logger = logging.getLogger("uvicorn")
+
+# start and shutdown
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    # startup
+    ## initialize database
+    try:
+        await database.init_db()
+    except Exception as e:
+        logger.error(f"fail to initialize database: {str(e)}")
+        raise
+    
+    ## initialize config
+    try:
+        async with database.with_get_db() as session:
+            async with session.begin():
+                config = await crud.create_or_update_config(session)
+    except Exception as e:
+        logger.error(f"fail to initialize Config in database: {str(e)}")
+        raise
+    
+    async with settings_lock:
+        settings.ANNOUNCEMENT_CHANNEL_ID = config.announcement_channel_id
+        settings.CTF_CHANNEL_CATEGORY_ID = config.ctf_channel_category_id
+        settings.ARCHIVE_CATEGORY_ID = config.archive_category_id
+        settings.PM_ROLE_ID = config.pm_role_id
+        settings.MEMBER_ROLE_ID = config.member_role_id
+    
+    ## start discord bot
+    await bot.start_bot()
+    
+    # app run
+    yield
+    
+    # shutdown
+    ## stop discord bot
+    await bot.stop_bot()
+
+
+# app
+app = FastAPI(debug=False, lifespan=lifespan)
+
+# middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.HTTP_FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-logging.getLogger("discord.client").setLevel(logging.ERROR)
-logger = logging.getLogger(__name__)
 
-# bot
-intents = discord.Intents.default()
-intents.members = True
-intents.guilds = True
-intents.reactions = True
-intents.message_content = True
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.HTTP_SECRET_KEY,
+    domain=settings.HTTP_COOKIE_DOMAIN,
+    path="/",
+    same_site="Lax",
+    https_only=True,
+    max_age=settings.HTTP_COOKIE_MAX_AGE,
+)
 
-bot = commands.Bot(intents=intents)
+# router
 
-@bot.event
-async def on_ready():
-    logger.info(f"Bot logged in: {bot.user}")
-
-
-async def main():
-    # setup
-    
-    # initializing database    
-    logger.info("Initializing database...")
-    await init_db()
-    
-    # start
-    logger.info(f"Starting CTF Bot...")
-    async with bot:
-        await bot.start(settings.DISCORD_BOT_TOKEN)
-
-
-# cogs
-def load_cogs():
-    for filename in glob.glob("./src/cogs/*.py"):
-        name = pathlib.Path(filename).name.split(".")[0]
-        extension_name = f"src.cogs.{name}"
-        try:
-            bot.load_extension(extension_name)
-            logger.info(f"{extension_name} loaded")
-        except Exception as e:
-            logger.error(f"failed to load {extension_name}: {str(e)}")
-
-
-if __name__ == "__main__":
-    load_cogs()
-    asyncio.run(main())
+# index
+@app.get("/")
+async def index() -> schema.General:
+    return schema.General(
+        success=True,
+        message="Shirakami Fubuki is the cutest fox in the world!"
+    )

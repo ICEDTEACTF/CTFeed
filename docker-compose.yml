@@ -1,30 +1,41 @@
 services:
-  ctfeed:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ctfeed-bot
-    restart: unless-stopped
-    
-    env_file:
-      - .env
-    
+  #ctfeed:
+  #  build:
+  #    context: .
+  #    dockerfile: Dockerfile
+  #  container_name: ctfeed-bot
+  #  restart: unless-stopped
+  #  
+  #  env_file:
+  #    - .env
+  #  
+  #  volumes:
+  #    - ./data:/app/data
+  #    - ./logs:/app/logs
+  #  
+  #  mem_limit: 256m
+  #  cpus: 0.5
+  #  
+  #  logging:
+  #    driver: "json-file"
+  #    options:
+  #      max-size: "10m"
+  #      max-file: "3"
+  #  
+  #  healthcheck:
+  #    test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+  #    interval: 30s
+  #    timeout: 10s
+  #    retries: 3
+  #    start_period: 40s
+  database:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_DB: icedtea
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    
-    mem_limit: 256m
-    cpus: 0.5
-    
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    
-    healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - "./db_data:/var/lib/postgresql"
+    ports: # for developement
+      - "5432:5432"

@@ -1,0 +1,24 @@
+# About Config
+- Config 的權限驗證獨立於其他 module，只需要檢查用戶符合以下條件
+    - 在指定的 Guild (id=GUILD_ID)
+    - 有該 Guild 的 Administrator 權限
+- Config 只有一個 Row（儲存 Guild (id=Guild_ID) 的設定）
+- Config 有五個 Column
+    - announcement_channel_id: 發送公告的 channel 的 ID
+    - ctf_channel_category_id: CTF 頻道的 Category
+    - archive_category_id: 被封存的 CTF 頻道的 Category
+    - pm_role_id: 代表 PM 的 Role 的 ID
+    - member_role_id: 代表一般成員的 Role 的 ID
+- Config 在資料庫不需要加鎖
+    - announcement_channel_id 只是發送公告的地方
+    - ctf_channel_category_id 跟 archive_category_id 只是頻道**創建**或**移動**到哪而已
+    - pm_role_id 跟 member_role_id 只跟權限控管有關，當下是啥值就是啥值
+    - 這五個項目並沒有啥狀態機，所以**在資料庫不需要加鎖**
+- Config 會 cache 在記憶體 (存在 settings)
+- **存取這五個項目的 cache 需要加鎖**
+- 添加或刪除 Config 項目時需要處理以下地方
+    - src.database.model - 添加 Column、註冊 Config 到 ``config_info``
+    - src.config (Settings) - 添加``settings``(cache)成員、修改 ``settings_lock``註解
+    - src.crud.config - 添加``create_or_update_config``參數
+    - src.backend.config - ``update_config`` 同步 cache 那邊要改
+    - ctfeed.py - ``lifespan`` 裡面也有同步 cache 要改

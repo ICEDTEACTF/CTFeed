@@ -52,3 +52,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp 
+
+# Database (for developement)
+db_data
+
+# Misc
+test.py
+src/old/
