@@ -28,9 +28,9 @@ async def create_or_update_config(
     :param pm_role_id:
     :param member_role_id:
     
-    :return: The created or updated Config
+    :return: The Config that was created or updated.
     
-    :raise: (Exception from sqlalchemy)
+    :raise (Exception from sqlalchemy):
     """
     # args
     _args = {

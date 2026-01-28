@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 import enum
 
 from sqlalchemy import (
@@ -80,3 +80,54 @@ class Config(Base):
     __table_args__ = (
         CheckConstraint("id = 1", name="config_only_one_row"),
     )
+
+
+# User
+class Status(str, enum.Enum):
+    online="online"
+    offline="offline"
+
+
+class Skills(str, enum.Enum): # skill as category
+    web="Web"
+    reverse="Reverse Engineering"
+    pwn="Pwn"
+    crypto="Crypto"
+    misc="Misc"
+    forensics="Forensics"
+    web3="Web3"
+    Pentest="Pentest"
+    ppc="PPC"
+    osint="OSINT"
+    hardware="Hardware"
+    network="Network"
+
+
+class RhythmGames(str, enum.Enum):
+    pjsk="Project Sekai"
+    phigros="Phigros"
+    arcaea="Arcaea"
+    osu="osu!"
+    maimai="maimai"
+    chunithm="CHUNITHM"
+    sdvx="SOUND VOLTEX"
+
+
+class User(Base):
+    __tablename__ = "users"
+    
+    # index
+    discord_id:Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True, nullable=False, unique=True, autoincrement=False)
+    
+    # attrbutes
+    status:Mapped[Status] = mapped_column(Enum(Status, name="enum_status"), nullable=False, default=Status.online)
+    skills:Mapped[List[Skills]] = mapped_column(ARRAY(Enum(Skills, name="enum_skills")), nullable=False, default=[])
+    rhythm_games:Mapped[List[RhythmGames]] = mapped_column(ARRAY(Enum(RhythmGames, name="enum_rhythm_games")), nullable=False, default=[])
+    
+    # event
+    # todo
+
+
+# event: todo
+
+# challenge: todo

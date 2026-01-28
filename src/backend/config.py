@@ -25,7 +25,7 @@ async def check_config_valid_obj(guild:discord.Guild, key:str, value:Any) -> Tup
     :param value:
     
     :return message:
-    :return object: The object which the value of the config points to
+    :return object: The object which the value of the config points to.
     """
     
     config_info = model.config_info[key]
@@ -51,12 +51,12 @@ async def check_config_valid_obj(guild:discord.Guild, key:str, value:Any) -> Tup
 
 async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.ConfigResponse:
     """
-    Read config
+    Read config.
     
     :param bot:
     :param key:
     
-    :return ConfigResponse: Guild name, Guild id and Config
+    :return ConfigResponse: Guild name, Guild id and Config.
     
     :raise HTTPException:
     """
@@ -127,10 +127,10 @@ async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
     """
     Update Config in database and cache.
     
-    :params bot:
-    :params kv: Tuple (key, value)
+    :param bot:
+    :param kv: Tuple (key, value)
     
-    :raise: HTTPException
+    :raise HTTPException:
     """
     # get guild
     guild = bot.get_guild(settings.GUILD_ID)
