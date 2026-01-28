@@ -172,7 +172,7 @@ async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
                 )
     except Exception as e:
         logger.error(f"fail to update Config in database: {str(e)}")
-        raise HTTPException(500, detail=f"fail to update Config in database: {str(e)}")
+        raise HTTPException(500, detail=f"fail to update Config in database")
     
     # update cache
     await update_config_cache(config)

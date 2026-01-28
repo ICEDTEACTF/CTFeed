@@ -4,6 +4,7 @@ import enum
 from sqlalchemy import (
     Integer, BigInteger, String, Boolean,
     Enum, ARRAY,
+    Table, Column,
     ForeignKey,
     CheckConstraint
 )
@@ -68,7 +69,7 @@ config_info = {
 }
 
 class Config(Base):
-    __tablename__ = "Config"
+    __tablename__ = "config"
     
     id:Mapped[int] = mapped_column(Integer, primary_key=True, index=True, unique=True, nullable=False, autoincrement=False, default=1)
     announcement_channel_id:Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True, default=-1)
@@ -82,7 +83,7 @@ class Config(Base):
     )
 
 
-# User
+# User - Enum
 class Status(str, enum.Enum):
     online="online"
     offline="offline"
@@ -113,6 +114,15 @@ class RhythmGames(str, enum.Enum):
     sdvx="SOUND VOLTEX"
 
 
+# User - Event - many to many
+user_event = Table(
+    "user_event",
+    Base.metadata,
+    Column("user_discord_id", ForeignKey("users.discord_id", ondelete="RESTRICT"), primary_key=True),
+    Column("event_db_id", ForeignKey("events.id", ondelete="RESTRICT"), primary_key=True)
+)
+
+# User
 class User(Base):
     __tablename__ = "users"
     
@@ -125,9 +135,47 @@ class User(Base):
     rhythm_games:Mapped[List[RhythmGames]] = mapped_column(ARRAY(Enum(RhythmGames, name="enum_rhythm_games")), nullable=False, default=[])
     
     # event
-    # todo
+    events:Mapped[List["Event"]] = relationship(
+        "Event",
+        secondary=user_event,
+        back_populates="users"
+    )
 
 
-# event: todo
+# event
+class Event(Base):
+    __tablename__ = "events"
+    
+    # index
+    id:Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True, nullable=False, unique=True, autoincrement=True)
+    
+    # general attrbutes
+    archived:Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    
+    # event attrbutes
+    # event_id
+    # - from CTFTime -> not null
+    # - custom event -> null
+    event_id:Mapped[int] = mapped_column(BigInteger, nullable=True, unique=True)
+    title:Mapped[str] = mapped_column(String, nullable=False)
+    start:Mapped[int] = mapped_column(BigInteger, nullable=True)    # utc+0
+    finish:Mapped[int] = mapped_column(BigInteger, nullable=True)   # utc+0
+    
+    # discord attrbutes
+    channel_id:Mapped[int] = mapped_column(BigInteger, nullable=True, unique=True)
+    scheduled_event_id:Mapped[int] = mapped_column(BigInteger, nullable=True, unique=True)
+    
+    # lock
+    locked_until:Mapped[int] = mapped_column(BigInteger, nullable=True, default=None)
+    locked_by:Mapped[str] = mapped_column(String, nullable=True, default=None)
+    
+    # user
+    users:Mapped[List["User"]] = relationship(
+        "User",
+        secondary=user_event,
+        back_populates="events"
+    )
+    
+    # challenge: todo
 
 # challenge: todo

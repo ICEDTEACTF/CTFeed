@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload # todo
+from sqlalchemy.orm import selectinload
 import sqlalchemy
 
 from src.database.model import User, Status, Skills, RhythmGames
@@ -16,9 +16,9 @@ async def create_user(session:AsyncSession, discord_id:int) -> User:
     :param session:
     :param discord_id:
     
-    :return User: The User that was created.
+    :return User: The User that was created (relationship wasn't loaded).
     
-    :raise (Exceptions from sqlalchemy):
+    :raise (Exception from sqlalchemy):
     """
     # stmt
     stmt = sqlalchemy.insert(User) \
@@ -47,7 +47,8 @@ async def read_user(session:AsyncSession, discord_id:Optional[int]=None) -> List
     :raise (Exception from sqlalchemy):
     """
     # stmt
-    stmt = sqlalchemy.select(User)
+    stmt = sqlalchemy.select(User) \
+        .options(selectinload(User.events))
     
     if discord_id is not None:
         stmt = stmt.where(User.discord_id == discord_id)
@@ -76,9 +77,9 @@ async def update_user(
     :param skills:
     :param rhythm_games:
     
-    :return User: The User that was updated.
+    :return User: The User that was updated (relationship wasn't loaded).
     
-    :raise (Exceptions from sqlalchemy):
+    :raise (Exception from sqlalchemy):
     """
     # args
     _args = {

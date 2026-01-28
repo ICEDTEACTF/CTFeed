@@ -90,7 +90,7 @@ class ConfigMenu(discord.ui.View):
         try:
             state = str(self.change_page.values[0])
         except Exception:
-            await interaction.response.send_message("Invalid argument", ephemeral=True)
+            await interaction.response.send_message("Invalid arguments", ephemeral=True)
             return
 
         # change state
@@ -103,7 +103,7 @@ class ConfigMenu(discord.ui.View):
                     break
                 
         if key is None:
-            await interaction.response.send_message("Invalid argument", ephemeral=True)
+            await interaction.response.send_message("Invalid arguments", ephemeral=True)
             return
         
         # return
@@ -122,7 +122,7 @@ class ConfigMenu(discord.ui.View):
         try:
             value = self.edit.values[0].id
         except Exception as e:
-            await interaction.response.send_message("Invalid argument", ephemeral=True)
+            await interaction.response.send_message("Invalid arguments", ephemeral=True)
             return
         
         # update

@@ -1,0 +1,47 @@
+import logging
+
+from discord.ext import commands, tasks
+
+from src.config import settings
+from src import bgtask
+
+# logging
+logger = logging.getLogger("uvicorn")
+
+# cog
+class CTFBGTask(commands.Cog):
+    def __init__(self, bot:commands.Bot):
+        self.bot:commands.Bot = bot
+    
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        # start background task
+        if not self.task_checks.is_running():
+            self.task_checks.start()
+    
+    # background task
+    @tasks.loop(minutes=settings.CHECK_INTERVAL_MINUTES)
+    async def task_checks(self):
+        # process
+        await bgtask._detect_events_new()
+        await bgtask._detect_event_update_and_remove()
+        await bgtask._auto_archive()
+        await bgtask._recover_scheduled_events()
+    
+    
+    @task_checks.before_loop
+    async def before_task_checks(self):
+        await self.bot.wait_until_ready()
+    
+    
+    def cog_unload(self):
+        self.task_checks.cancel()
+    
+    
+    # interaction handler
+    # todo
+
+
+def setup(bot:commands.Bot):
+    bot.add_cog(CTFBGTask(bot))
