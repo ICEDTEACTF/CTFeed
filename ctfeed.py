@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.database import database
 from src.backend.config import update_config_cache
+from src.utils import ctf_api
 from src import crud
 from src import schema
 from src import bot
@@ -39,6 +40,13 @@ async def lifespan(app:FastAPI):
         raise
     await update_config_cache(config)
     
+    ## initialize aiohttp.ClientSession in src.utils.ctf_api
+    try:
+        await ctf_api.init_session()
+    except Exception as e:
+        logger.critical(f"fail to initialize aiohttp.ClientSession in src.utils.ctf_api")
+        raise
+    
     ## start discord bot
     await bot.start_bot()
     
@@ -48,6 +56,12 @@ async def lifespan(app:FastAPI):
     # shutdown
     ## stop discord bot
     await bot.stop_bot()
+    
+    ## close aiohttp.ClientSession in src.utils.ctf_api
+    try:
+        await ctf_api.close_session()
+    except Exception as e:
+        logger.critical(f"fail to stop aiohttp.ClientSession in src.utils.ctf_api")
 
 
 # app

@@ -5,3 +5,4 @@
     - fail to get or update config from settings (cache) -> src.database.model.Config, src.database.model.config_info and src.config.Settings are out of sync 
     - Guild not found
     - (discord bot) fail to load extension
+    - failure in ``except`` or ``fininally`` section of ``try...except...``
