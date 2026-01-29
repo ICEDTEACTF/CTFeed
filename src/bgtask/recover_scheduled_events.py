@@ -55,7 +55,7 @@ async def do_recover(event_db_id:int):
                 # update - scheduled event is exists
                 if not need_create:
                     if sc.name != event_db.title or \
-                            sc.location != f"https://ctftime.org/event/{event_db.event_id}" or \
+                            sc.location.value != f"https://ctftime.org/event/{event_db.event_id}" or \
                             int(sc.start_time.astimezone(timezone.utc).timestamp()) != event_db.start or \
                             int(sc.end_time.astimezone(timezone.utc).timestamp()) != event_db.finish:
                         logger.info(f"editing the scheduled event (id={sc_id}) of event (id={event_db.id})")
