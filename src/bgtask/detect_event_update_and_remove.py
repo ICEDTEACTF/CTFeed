@@ -35,12 +35,20 @@ async def check_and_update_event(event_db_id:int, event_api:Dict[str, Any]):
     
     # update database
     async with database.with_get_db() as session:
+        # try to lock the Event
         try:
-            # try to lock event
             lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-            if lock_owner_token is None:
-                raise RuntimeError(f"can't lock event (id={event_db_id})")
-            
+        except crud.NotFoundError:
+            logger.error(f"Event (id={event_db_id}) not found.")
+            return
+        except crud.LockedError:
+            logger.info(f"Event (id={event_db_id}) was locked. Skipped...")
+            return
+        except Exception as e:
+            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
+            return
+        
+        try:
             async with session.begin():
                 # get a new event_db
                 events_db = await crud.read_event(
@@ -98,8 +106,7 @@ async def check_and_update_event(event_db_id:int, event_api:Dict[str, Any]):
             logger.error(f"fail to update an Event (id={event_db_id}): {str(e)}")
         finally:
             try:
-                if lock_owner_token is not None:
-                    await crud.unlock_event(session, event_db_id, lock_owner_token)
+                await crud.unlock_event(session, event_db_id, lock_owner_token)
             except Exception as e:
                 logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
     

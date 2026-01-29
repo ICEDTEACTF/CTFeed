@@ -24,12 +24,20 @@ async def do_recover(event_db_id:int):
     sc:Optional[discord.ScheduledEvent] = None
     need_create = False
     async with database.with_get_db() as session:
+        # try to lock the Event
         try:
-            # try to lock the Event
             lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-            if lock_owner_token is None:
-                raise RuntimeError(f"Can't lock Event (id={event_db_id})")
-
+        except crud.NotFoundError:
+            logger.error(f"Event (id={event_db_id}) not found.")
+            return
+        except crud.LockedError:
+            logger.info(f"Event (id={event_db_id}) was locked. Skipped...")
+            return
+        except Exception as e:
+            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
+            return
+        
+        try:
             async with session.begin():
                 # get a new event_db
                 events_db = await crud.read_event(
@@ -104,11 +112,10 @@ async def do_recover(event_db_id:int):
                 except Exception as e:
                     logger.critical(f"fail to delete the wrong scheduled event (id={sc.id}): {str(e)}")
         finally:
-            if lock_owner_token is not None:
-                try:
-                    await crud.unlock_event(session, event_db_id, lock_owner_token)
-                except Exception as e:
-                    logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
+            try:
+                await crud.unlock_event(session, event_db_id, lock_owner_token)
+            except Exception as e:
+                logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
     
     return
 

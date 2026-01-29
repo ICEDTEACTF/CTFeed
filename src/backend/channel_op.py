@@ -1,6 +1,7 @@
 from typing import Optional
 import logging
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 import discord
 
@@ -16,6 +17,67 @@ from src import crud
 logger = logging.getLogger("uvicorn")
 
 # functions
+#async def _create_channel(session:AsyncSession, member:discord.Member, event_db_id:int, lock_owner_token:str):
+#    bot = await get_bot()
+#    # get guild
+#    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
+#        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+#        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+#    
+#    # get ctf channel category
+#    if (ctf_channel_category := get_category.get_category(guild, settings.CTF_CHANNEL_CATEGORY_ID)) is None:
+#        logger.critical(f"CTF channel category (id={settings.CTF_CHANNEL_CATEGORY_ID}) not found")
+#        raise HTTPException(500, f"CTF channel category (id={settings.CTF_CHANNEL_CATEGORY_ID}) not found")
+#    
+#    try:
+#        async with session.begin():
+#            # get a new event_db
+#            events_db = await crud.read_event(
+#                session,
+#                id=event_db_id,
+#                lock_owner_token=lock_owner_token,
+#                archived=False # ensure the event isn't archived
+#            )
+#            if len(events_db) == 0:
+#                raise RuntimeError(f"Event (id={event_db_id}) not found")
+            
+
+
+#async def create_and_join_channel(member:discord.Member, event_db_id:int):
+#    """
+#    Join channel or create channel (if the channel isn't exists)
+#    
+#    :param member:
+#    :param event_db_id:
+#    
+#    :raise HTTPException:
+#    """
+#    lock_owner_token:Optional[str] = None
+#    async with database.with_get_db() as session:
+#        try:
+#            # try to lock event
+#            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
+#            if lock_owner_token is None:
+#                raise RuntimeError(f"can't lock Event (id={event_db_id})")
+#            
+#            # try to create channel
+#            ...
+#            
+#            # join channel
+#            ...
+#        except Exception as e:
+#            if isinstance(e, HTTPException):
+#                raise
+#            logger.error(f"fail to join event (id={event_db_id}): {str(e)}")
+#            raise HTTPException(500, f"fail to join event (id={event_db_id})")
+#        finally:
+#            if lock_owner_token is not None:
+#                try:
+#                    await crud.unlock_event(session, event_db_id, lock_owner_token)
+#                except Exception as e:
+#                    logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
+
+
 async def archive_event(event_db_id:int, reason:str):
     """
     Archive the Event and it's channel, send notifications and remove it's scheduled event.
@@ -40,12 +102,18 @@ async def archive_event(event_db_id:int, reason:str):
         raise HTTPException(500, f"Archive Category (id={settings.ARCHIVE_CATEGORY_ID}) not found")
     
     async with database.with_get_db() as session:
+        # try to lock the Event
         try:
-            # try to lock event
             lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-            if lock_owner_token is None:
-                raise RuntimeError(f"can't lock Event (id={event_db_id})")
-            
+        except crud.NotFoundError:
+            raise HTTPException(404, f"Event (id={event_db_id}) not found")
+        except crud.LockedError:
+            raise HTTPException(423, f"Event (id={event_db_id}) was locked. Try again later.")
+        except Exception as e:
+            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
+            raise HTTPException(500, f"Can't lock Event (id={event_db_id})")
+        
+        try:
             async with session.begin():
                 # get a new event_db
                 events_db = await crud.read_event(
@@ -121,10 +189,9 @@ async def archive_event(event_db_id:int, reason:str):
             logger.error(f"fail to archive Event (id={event_db_id}): {str(e)}")
             raise HTTPException(500, f"fail to archive Event (id={event_db_id})")
         finally:
-            if lock_owner_token is not None:
-                try:
-                    await crud.unlock_event(session, event_db_id, lock_owner_token)
-                except Exception as e:
-                    logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
+            try:
+                await crud.unlock_event(session, event_db_id, lock_owner_token)
+            except Exception as e:
+                logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
     
     return

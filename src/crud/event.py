@@ -11,7 +11,13 @@ from src.database.model import Event, user_event
 from src.config import settings
 
 # lock and unlock
-async def try_lock_event(session:AsyncSession, id:int, duration:int) -> Optional[str]:
+class NotFoundError(Exception):
+    pass
+
+class LockedError(Exception):
+    pass
+
+async def try_lock_event(session:AsyncSession, id:int, duration:int) -> str:
     """
     Try to lock an Event.
     
@@ -21,6 +27,8 @@ async def try_lock_event(session:AsyncSession, id:int, duration:int) -> Optional
     
     :return str: Lock owner token.
     
+    :raise NotFoundError: Can't find the Event.
+    :raise LockedError: The Event was locked.
     :raise (Exception from sqlalchemy):
     """
     # time and lock_owner_token
@@ -29,7 +37,13 @@ async def try_lock_event(session:AsyncSession, id:int, duration:int) -> Optional
     lock_owner_token = hashlib.sha256(os.urandom(32)).hexdigest()
     
     # stmt
-    stmt = sqlalchemy.update(Event) \
+    check_exists_cte = (
+        sqlalchemy.select(Event.id) \
+        .where(Event.id == id)
+    ).cte("check_exists_cte")
+    
+    try_lock_cte = (
+        sqlalchemy.update(Event) \
         .where(Event.id == id) \
         .where(sqlalchemy.or_(
             Event.locked_until == None,
@@ -39,15 +53,35 @@ async def try_lock_event(session:AsyncSession, id:int, duration:int) -> Optional
             locked_until=int(locked_until.timestamp()),
             locked_by=lock_owner_token
         ) \
-        .returning(Event.id)
+        .returning(Event)
+    ).cte("try_lock_cte")
+    
+    check_lock = sqlalchemy.exists(
+        sqlalchemy.select(try_lock_cte.c.id) \
+        .where(try_lock_cte.c.id == id) \
+        .where(try_lock_cte.c.locked_by == lock_owner_token)
+    )
+    
+    stmt = sqlalchemy.select(
+        sqlalchemy.case(
+            (check_lock, "success"),
+            else_="locked"
+        ),
+    ) \
+    .where(check_exists_cte.c.id == id)
     
     # execute
-    locked = False
     async with session.begin():
-        if (await session.execute(stmt)).scalar_one_or_none() is not None:
-            locked = True
+        status = (await session.execute(stmt)).one_or_none()
     
-    return lock_owner_token if locked else None
+    if status is None:
+        raise NotFoundError
+    else:
+        status = status[0]
+        if status == "success":
+            return lock_owner_token
+        elif status == "locked":
+            raise LockedError
 
 
 async def unlock_event(session:AsyncSession, id:int, lock_owner_token:str) -> bool:
