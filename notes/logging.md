@@ -6,3 +6,6 @@
     - Guild not found
     - (discord bot) fail to load extension
     - failure in ``except`` or ``fininally`` section of ``try...except...``
+
+- Rollback 出錯誤一律使用 critical
+- Rollback logging 一律在前面加上 ``[rollback]``

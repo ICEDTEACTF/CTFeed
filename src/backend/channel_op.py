@@ -16,6 +16,8 @@ from src.utils import embed_creator
 from src.bot import get_bot
 from src import crud
 
+# channel_op = "event_op"
+
 # logging
 logger = logging.getLogger("uvicorn")
 
@@ -26,6 +28,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
     event_api:Optional[Dict[str, Any]] = None
     ctftime_event:bool = False
     created:bool = False
+    log_msg:str = ""
     
     # get guild
     bot = await get_bot()
@@ -75,6 +78,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
             event_db = await crud.update_event(session, event_db.id, lock_owner_token, channel_id=channel.id)
             
             created = True
+            log_msg = f"{member.name} (id={member.id}) created a channel (id={channel.id}) for Event {event_db.title} (id={event_db.id})"
     except Exception as e:
         # rollback
         if channel is not None:
@@ -85,6 +89,9 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
         
         # raise exception
         raise
+    
+    # logging
+    logger.info(log_msg)
     
     if created:
         # send notification
@@ -111,6 +118,7 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
     
     joined_channel = False  # joined channel in Discord, but not in database
     joined = False          # joined channel in Discord and database
+    log_msg:str = ""
     try:
         async with session.begin():
             # get a new event_db
@@ -142,6 +150,8 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
             except Exception:
                 raise
             joined = True
+            
+            log_msg = f"{member.name} (id={member.id}) joined the channel {channel.name} (id={channel.id}) for Event {event_db.title} (id={event_db.id})"
     except Exception as e:
         # rollback
         if joined_channel:
@@ -152,6 +162,9 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
         
         # raise exception
         raise
+    
+    # logging
+    logger.info(log_msg)
     
     if joined:
         # send notification
@@ -267,6 +280,9 @@ async def archive_event(event_db_id:int, reason:str):
                 event_db_returning["title"] = event_db.title
                 event_db_returning["channel_id"] = event_db.channel_id
                 event_db_returning["scheduled_event_id"] = event_db.scheduled_event_id
+            
+            # logging
+            logger.info(f"Event {event_db_returning["title"]} (id={event_db_returning["id"]}) was archived: {reason}")
             
             embed = discord.Embed(
                 title=f"{event_db_returning["title"]} was archived",

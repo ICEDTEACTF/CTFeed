@@ -1,7 +1,5 @@
-from enum import Enum
 import logging
 
-from pydantic import BaseModel
 from discord.ext import commands
 import discord
 
@@ -22,6 +20,8 @@ class ConfigMenu(discord.ui.View):
         
     
     async def build_embed_and_view(self) -> discord.Embed:
+        self.clear_items()
+        
         # build embed
         try:
             config_info = await config.read_config(self.bot, self.state if self.state != "MAIN" else None)
@@ -53,8 +53,6 @@ class ConfigMenu(discord.ui.View):
 
 
     async def _build_view(self):
-        self.clear_items()
-        
         self.change_page = discord.ui.Select(
             placeholder="Details",
             min_values=1,
