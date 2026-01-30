@@ -26,9 +26,10 @@ class UserMenu(discord.ui.View):
     async def build_embed_and_view(self) -> discord.Embed:
         async with database.with_get_db() as session:
             try:
-                user_s = await user.get_user(session, self.discord_id)
+                users_s = await user.get_user(session, self.discord_id)
             except Exception as e:
                 return discord.Embed(title="Fail to read User", color=discord.Color.red())
+        user_s = users_s[0]
         
         # build embed
         color = discord.Color.green() if user_s.status == model.Status.online else discord.Color.red()

@@ -9,6 +9,7 @@ import discord
 from src.database.database import fastapi_get_db
 from src.config import settings
 from src.backend import security
+from src.backend import user
 from src import crud
 from src import schema
 
@@ -76,9 +77,32 @@ async def logout(request:Request):
     return RedirectResponse(settings.HTTP_FRONTEND_URL)
 
 # me
-@router.get("/me") # todo
-async def me(
+@router.get("/me")
+async def read_me(
+    session:AsyncSession=Depends(fastapi_get_db),
+    member:discord.Member=Depends(security.fastapi_check_user)
+) -> schema.User:
+    users = await user.get_user(session, member.id)
+    return users[0]
+
+
+@router.patch("/me")
+async def update_me(
+    data:schema.UpdateUser,
     session:AsyncSession=Depends(fastapi_get_db),
     member:discord.Member=Depends(security.fastapi_check_user)
 ) -> schema.General:
-    return schema.General(success=True, message=str(member.id))
+    try:
+        async with session.begin():
+            db_user = await crud.update_user(
+                session,
+                discord_id=member.id,
+                status=data.status,
+                skills=data.skills,
+                rhythm_games=data.rhythm_games
+            )
+    except Exception as e:
+        logger.error(f"fail to update User (discord_id={member.id}): {str(e)}")
+        raise HTTPException(500, f"fail to update User (discord_id={member.id})")
+
+    return schema.General(success=True, message="Done")

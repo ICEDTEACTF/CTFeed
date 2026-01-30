@@ -88,6 +88,7 @@ app.add_middleware(
 
 # router
 app.include_router(router.auth_router)
+app.include_router(router.user_router)
 
 # index
 @app.get("/")
