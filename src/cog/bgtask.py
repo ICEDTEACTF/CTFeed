@@ -1,7 +1,10 @@
 import logging
 
 from discord.ext import commands, tasks
+import discord
 
+from src.backend import security
+from src.backend import channel_op
 from src.config import settings
 from src import bgtask
 
@@ -40,8 +43,37 @@ class CTFBGTask(commands.Cog):
     
     
     # interaction handler
-    # todo
-
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction:discord.Interaction):
+        if interaction.type != discord.InteractionType.component:
+            return
+        
+        if (custom_id := interaction.data.get("custom_id", None)) is None:
+            return
+        
+        if custom_id.startswith("ctf_join_channel:"):
+            # check user
+            if (member := await security.discord_check_user_and_auto_register(interaction, False)) is None:
+                return
+            
+            # get event db id
+            try:
+                event_db_id:int = int(custom_id.split(":")[1])
+            except Exception:
+                await interaction.response.send_message("Invalid arguments")
+                return
+            
+            # join channel
+            await interaction.response.defer(ephemeral=True)
+            try:
+                await channel_op.create_and_join_channel(member, event_db_id)
+            except Exception as e:
+                await interaction.followup.send(str(e), ephemeral=True)
+                return
+            
+            await interaction.followup.send("Done", ephemeral=True)
+            return
+        
 
 def setup(bot:commands.Bot):
     bot.add_cog(CTFBGTask(bot))

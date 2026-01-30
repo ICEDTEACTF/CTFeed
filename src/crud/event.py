@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 import sqlalchemy
 
-from src.database.model import Event, user_event
+from src.database.model import Event, User, user_event
 from src.config import settings
 
 # lock and unlock
@@ -116,7 +116,105 @@ async def unlock_event(session:AsyncSession, id:int, lock_owner_token:str) -> bo
 
 
 # User - Event
-# todo
+async def join_event(
+    session:AsyncSession,
+    event_db_id:int,
+    discord_id:int,
+    lock_owner_token:str
+):
+    """
+    *This function "flushes" changes. Caller has to commit changes manually.*
+    
+    Join an User to an Event.
+    
+    :param session:
+    :param event_db_id:
+    :param discord_id:
+    :param lock_owner_token:
+    
+    :raise (Exception from sqlalchemy)
+    """
+    time_now = datetime.now(timezone.utc)
+    
+    # check lock
+    check_lock_stmt = sqlalchemy.select(Event.id) \
+        .where(Event.id == event_db_id) \
+        .where(Event.locked_by == lock_owner_token) \
+        .where(Event.locked_until >= int(time_now.timestamp()))
+    
+    check_lock_exists_stmt = sqlalchemy.exists(check_lock_stmt)
+                
+    # insert
+    stmt = sqlalchemy.insert(user_event).from_select(
+        ["user_discord_id", "event_db_id"],
+        sqlalchemy.select(discord_id, event_db_id) \
+            .where(check_lock_exists_stmt)
+    ).returning(user_event)
+    
+    # execute
+    try:
+        result = (await session.execute(stmt)).one()
+        await session.flush()
+        return
+    except Exception:
+        raise
+
+
+async def delete_user_in_event(session:AsyncSession, id:int, lock_owner_token:str, discord_id:Optional[int]=None):
+    """
+    *This function "flushes" changes. Caller has to commit changes manually.*
+    
+    Remove an User (or Users) from an Event.
+    
+    :param session:
+    :param event_db_id:
+    :param lock_owner_token:
+    :param discord_id:
+    
+    :raise (Exception from sqlalchemy):
+    """
+    time_now = datetime.now(timezone.utc)
+    
+    # check lock
+    check_lock_stmt = sqlalchemy.select(Event.id) \
+        .where(Event.id == id) \
+        .where(Event.locked_by == lock_owner_token) \
+        .where(Event.locked_until >= int(time_now.timestamp()))
+    
+    check_lock_exists_stmt = sqlalchemy.exists(check_lock_stmt)
+
+    # delete
+    delete_user_in_event_stmt = sqlalchemy.delete(user_event) \
+        .where(user_event.c.event_db_id == id) \
+        .where(check_lock_exists_stmt) \
+        .returning(user_event)
+    
+    if discord_id is not None:
+        delete_user_in_event_stmt = delete_user_in_event_stmt.where(user_event.c.user_discord_id == discord_id)
+    
+    delete_user_in_event_cte = delete_user_in_event_stmt.cte("delete_user_in_event_cte")
+
+    # stmt
+    stmt = sqlalchemy.select(
+        sqlalchemy.case(
+            (check_lock_exists_stmt, "normal"),
+            else_="error"
+        ),
+        sqlalchemy.func.array_agg(delete_user_in_event_cte.c.user_discord_id)
+    )
+    
+    # execute
+    try:
+        result = (await session.execute(stmt)).one()
+        
+        if result[0] != "normal":
+            raise RuntimeError("Invalid lock")
+        
+        await session.flush()
+        return
+    except Exception:
+        raise
+
 
 # create
 async def create_event(
@@ -274,6 +372,8 @@ async def read_ctfime_events_need_archive(session:AsyncSession, finish_before:in
     """
     Read Events which need to be archived.
     
+    **No need to lock. This function is just for bulk reading Events.**
+    
     :param session:
     :param finish_before: Search Events which are non-archived and finish before ``finish_before``
     
@@ -354,6 +454,8 @@ async def update_event(
     
     # execute
     try:
-        return (await session.execute(stmt)).scalar_one()
+        result = (await session.execute(stmt)).scalar_one()
+        await session.flush()
+        return result
     except Exception:
         raise
