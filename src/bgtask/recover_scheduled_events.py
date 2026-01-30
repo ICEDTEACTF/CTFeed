@@ -110,7 +110,7 @@ async def do_recover(event_db_id:int):
                 try:
                     await sc.delete()
                 except Exception as e:
-                    logger.critical(f"fail to delete the wrong scheduled event (id={sc.id}): {str(e)}")
+                    logger.critical(f"[rollback] fail to delete the wrong scheduled event (id={sc.id}): {str(e)}")
         finally:
             try:
                 await crud.unlock_event(session, event_db_id, lock_owner_token)

@@ -85,7 +85,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
             try:
                 await channel.delete()
             except Exception as e:
-                logger.critical(f"fail to delete the wrong TextChnnel (id={channel.id}): {str(e)}")
+                logger.critical(f"[rollback] fail to delete the wrong TextChnnel (id={channel.id}): {str(e)}")
         
         # raise exception
         raise
@@ -158,7 +158,7 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
             try:
                 await channel.set_permissions(member, view_channel=False)
             except Exception as e:
-                logger.critical(f"fail to set permission (view_channel=False) of channel (id={channel.id}) for member (discord_id={member.id}): {str(e)}")
+                logger.critical(f"[rollback] fail to set permission (view_channel=False) of channel (id={channel.id}) for member (discord_id={member.id}): {str(e)}")
         
         # raise exception
         raise
