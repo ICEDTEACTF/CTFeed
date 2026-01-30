@@ -1,7 +1,7 @@
 from typing import Optional
 import logging
 
-from asyncpg.exceptions import UniqueViolationError
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, Request
 from discord.ext import commands
 import discord
@@ -118,7 +118,7 @@ async def check_user_and_auto_register(
                         await crud.create_user(session, discord_id)
                     else:
                         raise HTTPException(403)
-    except UniqueViolationError:
+    except IntegrityError:
         # repeated, ignore...
         pass
     except Exception as e:

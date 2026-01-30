@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 
 import discord
-from asyncpg.exceptions import UniqueViolationError
+from sqlalchemy.exc import IntegrityError
 
 from src.utils import ctf_api
 from src.utils import embed_creator
@@ -61,8 +61,8 @@ async def _detect_events_new():
                             finish=int(datetime.fromisoformat(event_api["finish"]).astimezone(timezone.utc).timestamp())
                         )
                         event_db_id = event_db.id
-            except UniqueViolationError:
-                logger.info(f"fail to create an Event in database: UniqueViolationError, skipped...")
+            except IntegrityError:
+                logger.info(f"fail to create an Event in database: IntegrityError, skipped...")
                 continue
             except Exception as e:
                 logger.error(f"fail to create an Event in database: {str(e)}")
