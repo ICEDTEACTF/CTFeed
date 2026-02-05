@@ -153,6 +153,10 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
             
             log_msg = f"{member.name} (id={member.id}) joined the channel {channel.name} (id={channel.id}) for Event {event_db.title} (id={event_db.id})"
     except Exception as e:
+        # ignore HTTPException
+        if isinstance(e, HTTPException):
+            raise
+        
         # rollback
         if joined_channel:
             try:
@@ -395,6 +399,8 @@ async def link_event_to_channel(event_db_id:int, channel_id:int):
                     lock_owner_token=lock_owner_token,
                     channel_id=channel.id
                 )
+        except IntegrityError:
+            raise HTTPException(400, f"Channel (id={channel_id}) has been linked to other Event")
         except Exception as e:
             logger.error(f"fail to link Event (id={event_db_id}) to channel (id={channel_id}): {str(e)}")
             raise HTTPException(500, f"fail to link Event (id={event_db_id}) to channel (id={channel_id})")
@@ -406,5 +412,51 @@ async def link_event_to_channel(event_db_id:int, channel_id:int):
     
     # logging
     logger.info(f"Event (id={event_db_id}) was linked to channel (id={channel_id}) successfully")
+    
+    return
+
+
+async def create_custom_event(title:str):
+    """
+    Create a custom Event.
+    
+    :param title:
+    
+    :raise HTTPException:
+    """
+    # get guild
+    bot = await get_bot()
+    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    
+    # create the custom event in database
+    event_db_id = None
+    try:
+        async with database.with_get_db() as session:
+            async with session.begin():
+                event_db = await crud.create_event(session, title=title)
+            event_db_id = event_db.id
+    except Exception as e:
+        logger.error(f"fail to create a custom event: {str(e)}")
+        raise HTTPException(500, f"fail to create a custom event")
+    
+    # send notification
+    embed = discord.Embed(color=discord.Color.green(), title=f"Click the button to join {title}")
+    embed.set_footer(text=f"ID: {event_db_id}")
+    view = discord.ui.View(timeout=None)
+    view.add_item(
+        discord.ui.Button(
+            label="Join",
+            style=discord.ButtonStyle.blurple,
+            custom_id=f"ctf_join_channel:{event_db_id}",
+            emoji="🚩"
+        )
+    )
+    try:
+        await notification.send_notification(channel_id="anno", embed=embed, view=view)
+    except Exception as e:
+        logger.error(f"fail to send notification to announcement channel: {str(e)}")
+        # ignore exception
     
     return

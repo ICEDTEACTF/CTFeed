@@ -199,7 +199,9 @@ class EventMenu(discord.ui.View):
         if self.type != "custom":
             await interaction.response.send_message("Switch to Custom Events first", ephemeral=True)
             return
-        await interaction.response.send_message("Not implemented yet", ephemeral=True)
+        
+        await interaction.response.send_modal(CreateCustomEventModal(title="Create custom event"))
+        return
 
 
 class EventDetailMenu(discord.ui.View):
@@ -360,6 +362,25 @@ class EventDetailMenu(discord.ui.View):
         embed = await self.build_embed_and_view()
         await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
         return
+
+
+class CreateCustomEventModal(discord.ui.Modal):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        
+        self.add_item(discord.ui.InputText(label="Event title", style=discord.InputTextStyle.short))
+
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        title = self.children[0].value
+        
+        try:
+            await channel_op.create_custom_event(title)
+        except Exception as e:
+            await interaction.followup.send(content=str(e), ephemeral=True)
+        
+        await interaction.followup.send(content="Done", ephemeral=True)
 
 
 # cog
