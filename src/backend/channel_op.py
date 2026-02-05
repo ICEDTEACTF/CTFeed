@@ -339,3 +339,72 @@ async def archive_event(event_db_id:int, reason:str):
                 logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
     
     return
+
+
+async def link_event_to_channel(event_db_id:int, channel_id:int):
+    """
+    Link the Event to the channel.
+    
+    :param event_db_id:
+    :param channel_id: The channel which the Event will be linked to.
+    
+    :raise HTTPException:
+    """
+    lock_owner_token = None
+    
+    # get guild
+    bot = await get_bot()
+    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    
+    # get channel
+    if (channel := guild.get_channel(channel_id)) is None or \
+            not isinstance(channel, discord.TextChannel):
+        raise HTTPException(400, f"Channel (id={channel_id}) not found")
+    
+    async with database.with_get_db() as session:
+        # try to lock the Event
+        try:
+            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
+        except crud.NotFoundError:
+            raise HTTPException(404, f"Event (id={event_db_id}) not found")
+        except crud.LockedError:
+            raise HTTPException(423, f"Event (id={event_db_id}) was locked. Try again later.")
+        except Exception as e:
+            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
+            raise HTTPException(500, f"Can't lock Event (id={event_db_id})")
+        
+        try:
+            async with session.begin():
+                # get a new event_db
+                events_db = await crud.read_event(
+                    session=session,
+                    archived=False, # ensure the Event isn't archived
+                    id=event_db_id,
+                    lock_owner_token=lock_owner_token
+                )
+                if len(events_db) != 1:
+                    raise RuntimeError(f"Event (id={event_db_id}) not found")
+                event_db = events_db[0]
+                
+                # update database
+                event_db:model.Event = await crud.update_event(
+                    session=session,
+                    id=event_db.id,
+                    lock_owner_token=lock_owner_token,
+                    channel_id=channel.id
+                )
+        except Exception as e:
+            logger.error(f"fail to link Event (id={event_db_id}) to channel (id={channel_id}): {str(e)}")
+            raise HTTPException(500, f"fail to link Event (id={event_db_id}) to channel (id={channel_id})")
+        finally:
+            try:
+                await crud.unlock_event(session, event_db_id, lock_owner_token)
+            except Exception as e:
+                logger.critical(f"fail to unlock Event (id={event_db_id}): {str(e)}")
+    
+    # logging
+    logger.info(f"Event (id={event_db_id}) was linked to channel (id={channel_id}) successfully")
+    
+    return

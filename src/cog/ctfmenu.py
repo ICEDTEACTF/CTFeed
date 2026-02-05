@@ -211,17 +211,8 @@ class EventDetailMenu(discord.ui.View):
         self.type = type
 
 
-    async def _check_permission(self, interaction: discord.Interaction) -> Optional[discord.Member]:
-        if (member := (await security.discord_check_user_and_auto_register(interaction, False))) is None:
-            return None
-        if member.id != self.owner_id:
-            await interaction.response.send_message("You are not the owner of this view", ephemeral=True)
-            return None
-        return member
-
-
-    async def _check_pm_permission(self, interaction: discord.Interaction) -> Optional[discord.Member]:
-        if (member := (await security.discord_check_user_and_auto_register(interaction, True))) is None:
+    async def _check_permission(self, interaction: discord.Interaction, force_pm:bool) -> Optional[discord.Member]:
+        if (member := (await security.discord_check_user_and_auto_register(interaction, force_pm))) is None:
             return None
         if member.id != self.owner_id:
             await interaction.response.send_message("You are not the owner of this view", ephemeral=True)
@@ -250,6 +241,7 @@ class EventDetailMenu(discord.ui.View):
         # read event
         event = await self._read_event()
         if event is None:
+            self.clear_items()
             return discord.Embed(title="Event not found", color=discord.Color.red())
 
         # build embed
@@ -291,8 +283,11 @@ class EventDetailMenu(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.green, label="Join", row=0)
     async def join_event(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if (member := (await self._check_permission(interaction))) is None:
+        # check permission
+        if (member := (await self._check_permission(interaction, False))) is None:
             return
+        
+        # create or join channel
         try:
             await channel_op.create_and_join_channel(member, self.event_db_id)
         except HTTPException as e:
@@ -307,20 +302,67 @@ class EventDetailMenu(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
 
-    @discord.ui.button(style=discord.ButtonStyle.grey, label="Relink Channel", row=1)
-    async def relink_channel(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if await self._check_pm_permission(interaction) is None:
-            return
-        await interaction.response.send_message("Not implemented yet", ephemeral=True)
-
-
-    @discord.ui.button(style=discord.ButtonStyle.red, label="Archive Event", row=1)
+    @discord.ui.button(style=discord.ButtonStyle.red, label="Archive Event", row=0)
     async def archive_event(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if await self._check_pm_permission(interaction) is None:
+        # check permission
+        if (member := await self._check_permission(interaction, True)) is None:
             return
-        await interaction.response.send_message("Not implemented yet", ephemeral=True)
+        
+        # archive event
+        try:
+            await channel_op.archive_event(self.event_db_id, f"Manually archived by {member.name} (id={member.id})")
+        except HTTPException as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+        except Exception as e:
+            logger.error(f"fail to archive Event (id={self.event_db_id}): {str(e)}")
+            await interaction.response.send_message(f"fail to archive Event (id={self.event_db_id})", ephemeral=True)
+            return
+        
+        await interaction.response.edit_message(embed=discord.Embed(
+            color=discord.Color.green(),
+            title=f"Event (id={self.event_db_id}) was archived successfully"
+        ), view=None)
+        return
+    
+    
+    @discord.ui.select(
+        select_type=discord.ComponentType.channel_select,
+        placeholder="Link a channel to the Event...",
+        min_values=1,
+        max_values=1,
+        row=1
+    )
+    async def relink_channel(self, select: discord.ui.Select, interaction: discord.Interaction):
+        # check permission
+        if await self._check_permission(interaction, True) is None:
+            return
+        
+        # argument check
+        try:
+            channel = select.values[0]
+        except Exception:
+            await interaction.response.send_message("Invalid selection", ephemeral=True)
+            return
+
+        # relink
+        try:
+            await channel_op.link_event_to_channel(self.event_db_id, channel.id)
+        except HTTPException as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+        except Exception as e:
+            logger.error(f"fail to link channel (id={channel.id}) to Event (id={self.event_db_id}): {str(e)}")
+            await interaction.response.send_message(f"fail to link channel (id={channel.id}) to Event (id={self.event_db_id})", ephemeral=True)
+            return
+        
+        # response
+        embed = await self.build_embed_and_view()
+        await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
+        return
 
 
+# cog
 class CTFMenu(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
