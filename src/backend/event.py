@@ -16,6 +16,7 @@ logger = logging.getLogger("uvicorn")
 
 
 # functions
+# todo
 async def get_event(
     session:AsyncSession,
     type:Optional[Literal["ctftime", "custom"]]=None,

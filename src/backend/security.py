@@ -15,7 +15,7 @@ from src import crud
 logger = logging.getLogger("uvicorn")
 
 # functions
-async def check_administrator(discord_id:int) -> bool:
+async def check_administrator(discord_id:int) -> Optional[discord.Member]:
     """
     Check whether the user meets the following requirements:
     - In the Guild (id=GUILD_ID)
@@ -23,24 +23,24 @@ async def check_administrator(discord_id:int) -> bool:
     
     :param discord_id:
     
-    :return: Whether the user meets the requirements.
+    :return Optional[discord.Member]:
     """
     bot = await get_bot()
     guild = bot.get_guild(settings.GUILD_ID)
     if guild is None:
         logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        return False
+        return None
     
     # check whether the user is in the guild
     member = guild.get_member(discord_id)
     if member is None:
-        return False
+        return None
     
     # check whether the user is an administrator of the guild
     if member.guild_permissions.administrator == False:
-        return False
+        return None
     
-    return True
+    return member
 
 
 async def check_user(discord_id:int, force_pm:bool) -> discord.Member:
@@ -132,7 +132,7 @@ async def check_user_and_auto_register(
 
 # for discord
 async def discord_check_administrator(interaction:discord.Interaction) -> bool:
-    if not (await check_administrator(interaction.user.id)):
+    if (await check_administrator(interaction.user.id)) is None:
         await interaction.response.send_message("Forbidden", ephemeral=True)
         return False
     return True
@@ -151,6 +151,17 @@ async def discord_check_user_and_auto_register(interaction:discord.Interaction, 
 
 
 # for fastapi
+async def fastapi_check_administrator(request:Request) -> discord.Member:
+    try:
+        discord_id = int(request.session["discord_id"])
+    except Exception:
+        raise HTTPException(401)
+    
+    if (member := (await check_administrator(discord_id))) is None:
+        raise HTTPException(403)
+    return member
+
+
 async def fastapi_check_user(request:Request) -> discord.Member:
     try:
         discord_id = int(request.session["discord_id"])

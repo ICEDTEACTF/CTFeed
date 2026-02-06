@@ -2,6 +2,12 @@ from typing import List, Any
 
 from pydantic import BaseModel
 
+# request schema
+class UpdateConfig(BaseModel):
+    value:Any
+
+
+# response schema
 class Config(BaseModel):
     key:str
     description:str
