@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional, List
 import logging
 import math
@@ -85,10 +85,15 @@ class EventMenu(discord.ui.View):
     async def build_embed_and_view(self) -> discord.Embed:
         try:
             async with database.with_get_db() as session:
+                finish_after = None
+                if self.type == "ctftime":
+                    finish_after = int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
+
                 self.events = await crud.read_event(
                     session=session,
                     type=self.type,
-                    archived=False
+                    archived=False,
+                    finish_after=finish_after
                 )
         except Exception as e:
             logger.error(f"fail to read Events: {str(e)}")

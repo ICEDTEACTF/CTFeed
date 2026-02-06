@@ -14,7 +14,7 @@ from src import schema
 logger = logging.getLogger("uvicorn")
 
 # router
-router = APIRouter(prefix="/user")
+router = APIRouter(prefix="/user", tags=["User"])
 
 # create - register (auth)
 # read

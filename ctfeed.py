@@ -89,9 +89,10 @@ app.add_middleware(
 # router
 app.include_router(router.auth_router)
 app.include_router(router.user_router)
+app.include_router(router.ctf_router)
 
 # index
-@app.get("/")
+@app.get("/", tags=["Shirakami Fubuki"])
 async def index() -> schema.General:
     return schema.General(
         success=True,

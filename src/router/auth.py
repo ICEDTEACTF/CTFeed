@@ -36,7 +36,7 @@ oauth.register(
 )
 
 # router
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # auth
 @router.get("/discord")
