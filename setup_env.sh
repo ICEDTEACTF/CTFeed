@@ -112,18 +112,18 @@ done
 
 echo ""
 echo "HTTP Frontend URL:"
-echo "   Default is http://localhost:5000"
-read -p "   Enter HTTP frontend URL (press Enter for default http://localhost:5000): " HTTP_FRONTEND_URL
+echo "   Default is https://example.com"
+read -p "   Enter HTTP frontend URL (press Enter for default https://example.com): " HTTP_FRONTEND_URL
 if [ -z "$HTTP_FRONTEND_URL" ]; then
-    HTTP_FRONTEND_URL="http://localhost:5000"
+    HTTP_FRONTEND_URL="https://example.com"
 fi
 
 echo ""
 echo "HTTP Cookie Domain:"
-echo "   Default is localhost"
-read -p "   Enter HTTP cookie domain (press Enter for default localhost): " HTTP_COOKIE_DOMAIN
+echo "   Default is .example.com"
+read -p "   Enter HTTP cookie domain (press Enter for default .example.com): " HTTP_COOKIE_DOMAIN
 if [ -z "$HTTP_COOKIE_DOMAIN" ]; then
-    HTTP_COOKIE_DOMAIN="localhost"
+    HTTP_COOKIE_DOMAIN=".example.com"
 fi
 
 echo ""
