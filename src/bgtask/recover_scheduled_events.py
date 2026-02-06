@@ -55,6 +55,11 @@ async def do_recover(event_db_id:int):
                 if event_db.channel_id is None:
                     # The event doesn't have a channel, so no need to create or update it's scheduled event 
                     return
+                
+                time_now_timestamp = int(datetime.now(timezone.utc).timestamp())
+                if event_db.start <= time_now_timestamp or event_db.finish <= time_now_timestamp:
+                    # Discord can't create a scheduled event which has already started (or passed)
+                    return
 
                 if (sc_id := event_db.scheduled_event_id) is None or \
                     (sc := guild.get_scheduled_event(sc_id)) is None:
