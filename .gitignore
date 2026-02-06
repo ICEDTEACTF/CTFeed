@@ -52,3 +52,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp 
+
+# Database (for developement)
+db_data
+
+# Misc
+src/old/
+GEMINI.md
+test/
+AGENTS.md
+ai/
+TODO.md

@@ -1,64 +1,101 @@
 #!/usr/bin/env python3
 
+from contextlib import asynccontextmanager
 import logging
-import asyncio
-import glob
-import pathlib
 
-import discord
-from discord.ext import commands
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.database.database import init_db
+from src.database import database
+from src.backend.config import update_config_cache
+from src.utils import ctf_api
+from src import crud
+from src import schema
+from src import bot
+from src import router
 
 # logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+logger = logging.getLogger("uvicorn")
+
+# start and shutdown
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    # startup
+    ## initialize database
+    try:
+        await database.init_db()
+    except Exception as e:
+        logger.critical(f"fail to initialize database: {str(e)}")
+        raise
+    
+    ## initialize config
+    try:
+        async with database.with_get_db() as session:
+            async with session.begin():
+                config = await crud.create_or_update_config(session)
+    except Exception as e:
+        logger.critical(f"fail to initialize Config in database: {str(e)}")
+        raise
+    await update_config_cache(config)
+    
+    ## initialize aiohttp.ClientSession in src.utils.ctf_api
+    try:
+        await ctf_api.init_session()
+    except Exception as e:
+        logger.critical(f"fail to initialize aiohttp.ClientSession in src.utils.ctf_api")
+        raise
+    
+    ## start discord bot
+    await bot.start_bot()
+    
+    # app run
+    yield
+    
+    # shutdown
+    ## stop discord bot
+    await bot.stop_bot()
+    
+    ## close aiohttp.ClientSession in src.utils.ctf_api
+    try:
+        await ctf_api.close_session()
+    except Exception as e:
+        logger.critical(f"fail to stop aiohttp.ClientSession in src.utils.ctf_api")
+
+
+# app
+app = FastAPI(debug=False, lifespan=lifespan)
+
+# middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.HTTP_FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-logging.getLogger("discord.client").setLevel(logging.ERROR)
-logger = logging.getLogger(__name__)
 
-# bot
-intents = discord.Intents.default()
-intents.members = True
-intents.guilds = True
-intents.reactions = True
-intents.message_content = True
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.HTTP_SECRET_KEY,
+    domain=settings.HTTP_COOKIE_DOMAIN,
+    path="/",
+    same_site="Lax",
+    https_only=True,
+    max_age=settings.HTTP_COOKIE_MAX_AGE,
+)
 
-bot = commands.Bot(intents=intents)
+# router
+app.include_router(router.auth_router)
+app.include_router(router.user_router)
+app.include_router(router.ctf_router)
+app.include_router(router.config_router)
 
-@bot.event
-async def on_ready():
-    logger.info(f"Bot logged in: {bot.user}")
-
-
-async def main():
-    # setup
-    
-    # initializing database    
-    logger.info("Initializing database...")
-    await init_db()
-    
-    # start
-    logger.info(f"Starting CTF Bot...")
-    async with bot:
-        await bot.start(settings.DISCORD_BOT_TOKEN)
-
-
-# cogs
-def load_cogs():
-    for filename in glob.glob("./src/cogs/*.py"):
-        name = pathlib.Path(filename).name.split(".")[0]
-        extension_name = f"src.cogs.{name}"
-        try:
-            bot.load_extension(extension_name)
-            logger.info(f"{extension_name} loaded")
-        except Exception as e:
-            logger.error(f"failed to load {extension_name}: {str(e)}")
-
-
-if __name__ == "__main__":
-    load_cogs()
-    asyncio.run(main())
+# index
+@app.get("/", tags=["Shirakami Fubuki"])
+async def index() -> schema.General:
+    return schema.General(
+        success=True,
+        message="Shirakami Fubuki is the cutest fox in the world!"
+    )

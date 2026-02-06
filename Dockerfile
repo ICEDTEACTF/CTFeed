@@ -20,8 +20,7 @@ COPY --chown=icedtea:icedtea pyproject.toml uv.lock ./
 COPY --chown=icedtea:icedtea README.md ./
 COPY --chown=icedtea:icedtea ctfeed.py ./
 COPY --chown=icedtea:icedtea src/ ./src/
-COPY --chown=icedtea:icedtea data/ ./data/
 
 RUN uv sync --frozen
 
-CMD ["uv", "run", "python", "ctfeed.py"]
+CMD ["/bin/bash", "./startup.sh"]

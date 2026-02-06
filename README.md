@@ -1,6 +1,11 @@
 # CTFeed
+A Discord bot that automatically tracks CTF (Capture The Flag) events from [CTFtime.org](https://ctftime.org) and manages event workflows inside your guild.
 
-A Discord bot that automatically tracks CTF (Capture The Flag) events from [CTFtime.org](https://ctftime.org) and sends notifications when new competitions are announced.
+## Features
+- Detect new, updated, and canceled CTFTime events
+- Sends notifications
+- Create/join event channels
+- Manage events with slash commands and REST APIs
 
 ## Prerequisites
 
@@ -8,15 +13,40 @@ Before getting started, you'll need:
 
 - **Python 3.13** and **uv** package manager
 - **Discord Bot Application** with proper permissions
+- Domain
+- Docker and Docker compose (recommanded)
 
 ### Setting Up Your Discord Bot
 
 1. Visit the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application
-2. Navigate to the "Bot" section and copy your bot token (keep this secure!)
-3. Configure the following bot permissions:
-   - **Send Messages** - Allow the bot to post CTF announcements
-   - **Manage Messages** - Enable the bot to manage its own messages
+2. Navigate to the "Bot" section and copy your **bot token** (keep this secure!)
+3. Navigate to the "OAuth2" section and copy your **Client ID** and **Client Secret** (keep these secure!)
 4. Generate an invite link and add the bot to your Discord server
+5. Configure the following bot permissions:
+    - **View Channels**
+    - **Manage Channels**
+    - **Send Messages and Create Posts**
+    - **Send Messages in Threads and Posts**
+    - **Create Public Threads**
+    - **Create Private Threads**
+    - **Embed links**
+    - **Add Reactions**
+    - **Bypass Slowmode**
+    - **Manage Threads and Posts**
+    - **Read Message History**
+    - **Use Application Commands**
+    - **Create Events**
+    - **Manage Events**
+
+## Domain
+Follow the instructions here or the web interface may not work.
+
+We suppose that your domain is ``example.com`` and you serve the frontend of the bot on ``bot.example.com``.
+
+Then you have to serve backend API on ``api.bot.example.com``.
+
+- frontend - ``bot.example.com``
+- backend - ``api.bot.example.com``
 
 ## Quick Start
 
@@ -55,7 +85,7 @@ Prefer to set things up manually? Here's the traditional approach:
 - **uv** and **Python 3.13**
 - **Docker** and **Docker Compose**
 
-### 1. Install Dependencies
+### Install Dependencies
 
 ```bash
 uv sync
@@ -68,27 +98,39 @@ Start by copying the example configuration:
 cp .env.example .env
 ```
 
-Then edit the `.env` file with your specific settings. Focus on these key variables:
+Then edit the `.env` file with your specific settings:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DISCORD_BOT_TOKEN` | Your Discord bot token | `MTIzNDU2Nzg5...` |
-| `CHECK_INTERVAL_MINUTES` | How often to check for new CTFs | `30` (default) |
-| `ANNOUNCEMENT_CHANNEL_ID` | Channel id for announcements | `911612541829009418` |
-| `CTF_CHANNEL_CATETORY_ID` | Category id for CTF event channel creations | `1454642939559940329` |
-| `TIMEZONE` | time zone for displaying | `Asia/Taipei` (default) |
+| Variable | Description |
+|----------|-------------|
+| `DISCORD_BOT_TOKEN` | Discord bot token |
+| `GUILD_ID` | Target guild ID |
+| `HTTP_SECRET_KEY` | Session secret key for FastAPI |
+| `HTTP_FRONTEND_URL` | Frontend base URL (used for OAuth redirect) |
+| `HTTP_COOKIE_DOMAIN` | Cookie domain for session |
+| `DISCORD_OAUTH2_CLIENT_ID` | Discord OAuth2 client ID |
+| `DISCORD_OAUTH2_CLIENT_SECRET` | Discord OAuth2 client secret |
+| `CHECK_INTERVAL_MINUTES` | CTFTime polling interval |
+| `DATABASE_URL` | PostgreSQL database URL |
 
-*Other configuration options can remain at their default values.*
+`DISCORD_OAUTH2_REDIRECT_URI` is derived from `HTTP_FRONTEND_URL` as `HTTP_FRONTEND_URL/auth/login`.
+
+Discord-side config values are stored in database and set after launch:
+
+- `ANNOUNCEMENT_CHANNEL_ID`
+- `CTF_CHANNEL_CATEGORY_ID`
+- `ARCHIVE_CATEGORY_ID`
+- `PM_ROLE_ID`
+- `MEMBER_ROLE_ID`
 
 ### Launch the Bot
 Choose your preferred method:
 
 ```bash
 # With uv (recommended)
-uv run python ctfeed.py
+./startup.sh
 
 # Or with Python directly
-python3 ctfeed.py
+uvicorn --host 0.0.0.0 --port 5000 ctfeed:app
 ```
 
 ## Docker Management
@@ -117,8 +159,12 @@ Docker command cheatsheet for this bot:
 
 ## How CTFeed Works
 
-Once running, the bot will:
+Once running, CTFeed will:
 
-1. Automatically check CTFtime.org for new CTF events
-2. Post announcements in your designated Discord channel
-3. Use `data/database.db` to track announced events, avoid duplicates, record CTF event channel, and more.
+1. Start FastAPI and the Discord bot together in the app lifespan
+2. Initialize database and config cache
+3. Poll CTFTime for new, updated, and removed events
+4. Post notifications to the announcement channel
+5. Create/join event channels and manage membership
+6. Create or recover Discord scheduled events
+7. Auto-archive expired or canceled events

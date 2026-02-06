@@ -1,0 +1,22 @@
+from typing import List, Any
+
+from pydantic import BaseModel
+
+# request schema
+class UpdateConfig(BaseModel):
+    value:Any
+
+
+# response schema
+class Config(BaseModel):
+    key:str
+    description:str
+    message:str
+    value:Any
+    ok:bool
+
+
+class ConfigResponse(BaseModel):
+    guild_id:int
+    guild_name:str
+    config:List[Config]

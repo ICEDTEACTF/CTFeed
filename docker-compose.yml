@@ -5,26 +5,33 @@ services:
       dockerfile: Dockerfile
     container_name: ctfeed-bot
     restart: unless-stopped
-    
     env_file:
       - .env
-    
+    ports:
+      - 5000:5000/tcp
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    
-    mem_limit: 256m
-    cpus: 0.5
-    
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    
+      - ./src:/app/src
+      - ./ctfeed.py:/app/ctfeed.py
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
+      - ./README.md:/app/README.md
+      - ./startup.sh:/app/startup.sh
+    mem_limit: 4G
+    cpus: 4
     healthcheck:
       test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      - database
+  database:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: icedtea
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: default_database_password # You can change this for security
+    volumes:
+      - "./db_data:/var/lib/postgresql"
