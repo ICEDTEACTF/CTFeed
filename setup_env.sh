@@ -34,24 +34,8 @@ check_tools() {
     fi
 }
 
-check_data_directory() {
-    if [ ! -w "data" ]; then
-        echo -e "${YELLOW}✗ Data directory is not writable, creating...${NC}"
-        mkdir -p data
-        chmod 666 data/known_events.json 2>/dev/null || true
-    fi
-    if [ ! -f "data/known_events.json" ]; then
-        echo -e "${YELLOW}✗ known_events.json not found, creating...${NC}"
-        echo "[]" > data/known_events.json
-        chmod 666 data/known_events.json 2>/dev/null || true
-    fi
-    echo -e "${GREEN}✓ Data directory is writable and ${WHITE}data/known_events.json${NC} ${GREEN}is created${NC}"
-    echo ""
-}
-
 # Run system checks
 check_tools
-check_data_directory
 
 if [ -f ".env" ]; then
     echo -e "${YELLOW}.env already exists! Nothing to do.${NC}"
@@ -93,10 +77,77 @@ echo "Discord Bot Token:"
 echo "   Get this from https://discord.com/developers/applications"
 while true; do
     read -p "   Paste your Discord Bot Token: " DISCORD_BOT_TOKEN
+    echo ""
     if [ -n "$DISCORD_BOT_TOKEN" ]; then
         break
     else
         echo "   Error: Discord Bot Token cannot be empty. Please try again."
+    fi
+done
+
+echo ""
+echo "Guild ID:"
+echo "   Your Discord server (Guild) ID"
+while true; do
+    read -p "   Paste your Guild ID: " GUILD_ID
+    if [ -n "$GUILD_ID" ]; then
+        break
+    else
+        echo "   Error: Guild ID cannot be empty. Please try again."
+    fi
+done
+
+echo ""
+echo "HTTP Secret Key:"
+echo "   A random secret key for HTTP API authentication"
+while true; do
+    read -p "   Paste your HTTP Secret Key: " HTTP_SECRET_KEY
+    echo ""
+    if [ -n "$HTTP_SECRET_KEY" ]; then
+        break
+    else
+        echo "   Error: HTTP Secret Key cannot be empty. Please try again."
+    fi
+done
+
+echo ""
+echo "HTTP Frontend URL:"
+echo "   Default is http://localhost:5000"
+read -p "   Enter HTTP frontend URL (press Enter for default http://localhost:5000): " HTTP_FRONTEND_URL
+if [ -z "$HTTP_FRONTEND_URL" ]; then
+    HTTP_FRONTEND_URL="http://localhost:5000"
+fi
+
+echo ""
+echo "HTTP Cookie Domain:"
+echo "   Default is localhost"
+read -p "   Enter HTTP cookie domain (press Enter for default localhost): " HTTP_COOKIE_DOMAIN
+if [ -z "$HTTP_COOKIE_DOMAIN" ]; then
+    HTTP_COOKIE_DOMAIN="localhost"
+fi
+
+echo ""
+echo "Discord OAuth2 Client ID:"
+echo "   Get this from https://discord.com/developers/applications"
+while true; do
+    read -p "   Paste your Discord OAuth2 Client ID: " DISCORD_OAUTH2_CLIENT_ID
+    if [ -n "$DISCORD_OAUTH2_CLIENT_ID" ]; then
+        break
+    else
+        echo "   Error: Discord OAuth2 Client ID cannot be empty. Please try again."
+    fi
+done
+
+echo ""
+echo "Discord OAuth2 Client Secret:"
+echo "   Get this from https://discord.com/developers/applications"
+while true; do
+    read -p "   Paste your Discord OAuth2 Client Secret: " DISCORD_OAUTH2_CLIENT_SECRET
+    echo ""
+    if [ -n "$DISCORD_OAUTH2_CLIENT_SECRET" ]; then
+        break
+    else
+        echo "   Error: Discord OAuth2 Client Secret cannot be empty. Please try again."
     fi
 done
 
@@ -110,47 +161,24 @@ if [ -z "$CHECK_INTERVAL_MINUTES" ]; then
 fi
 
 echo ""
-echo "Announcement Channel ID:"
-echo "   The Discord channel where CTF announcements will be posted"
-echo "   The channel id that on your server"
-while true; do
-    read -p "   Paste your Discord Channel ID: " ANNOUNCEMENT_CHANNEL_ID
-    if [ -n "$ANNOUNCEMENT_CHANNEL_ID" ]; then
-        break
-    else
-        echo "   Error: Discord Channel Name cannot be empty. Please try again."
-    fi
-done
-
-echo ""
-echo "CTF Channel Category ID:"
-echo "   The Discord category where CTF channels will be created"
-echo "   The category id that on your server"
-while true; do
-    read -p "   Paste your Discord Category ID: " CTF_CHANNEL_CATETORY_ID
-    if [ -n "$CTF_CHANNEL_CATETORY_ID" ]; then
-        break
-    else
-        echo "   Error: Discord Channel Name cannot be empty. Please try again."
-    fi
-done
-
-echo ""
-echo "Time zone:"
-echo "   The display time zone"
-echo "   Default is Asia/Taipei"
-read -p "   Enter time zone (press Enter for default Asia/Taipei): " TIMEZONE
-if [ -z "$TIMEZONE" ]; then
-    TIMEZONE="Asia/Taipei"
+echo "Database URL:"
+echo "   Default is postgresql+asyncpg://root:default_database_password@database:5432/icedtea"
+read -p "   Enter database URL (press Enter for default value): " DATABASE_URL
+if [ -z "$DATABASE_URL" ]; then
+    DATABASE_URL="postgresql+asyncpg://root:default_database_password@database:5432/icedtea"
 fi
 
 echo ""
 echo "Please review your configuration:"
 echo "   Discord Bot Token: ${DISCORD_BOT_TOKEN:0:30}********** (hidden)"
+echo "   Guild ID: $GUILD_ID"
+echo "   HTTP Secret Key: ${HTTP_SECRET_KEY:0:10}********** (hidden)"
+echo "   HTTP Frontend URL: $HTTP_FRONTEND_URL"
+echo "   HTTP Cookie Domain: $HTTP_COOKIE_DOMAIN"
+echo "   Discord OAuth2 Client ID: $DISCORD_OAUTH2_CLIENT_ID"
+echo "   Discord OAuth2 Client Secret: ${DISCORD_OAUTH2_CLIENT_SECRET:0:10}********** (hidden)"
 echo "   Check Interval: $CHECK_INTERVAL_MINUTES minutes"
-echo "   Announcement Channel ID: $ANNOUNCEMENT_CHANNEL_ID"
-echo "   CTF Channel Category ID: $CTF_CHANNEL_CATETORY_ID"
-echo "   Time Zone: $TIMEZONE"
+echo "   Database URL: $DATABASE_URL"
 echo ""
 
 while true; do
@@ -177,14 +205,22 @@ echo ""
 cat > .env << EOF
 # Discord Bot Configuration
 DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
+GUILD_ID=$GUILD_ID
 
-# CTF Tracking Configuration
+# HTTP API Configuration
+HTTP_SECRET_KEY=$HTTP_SECRET_KEY
+HTTP_FRONTEND_URL=$HTTP_FRONTEND_URL
+HTTP_COOKIE_DOMAIN=$HTTP_COOKIE_DOMAIN
+
+# Discord OAuth2 Configuration
+DISCORD_OAUTH2_CLIENT_ID=$DISCORD_OAUTH2_CLIENT_ID
+DISCORD_OAUTH2_CLIENT_SECRET=$DISCORD_OAUTH2_CLIENT_SECRET
+
+# CTFTime Configuration
 CHECK_INTERVAL_MINUTES=$CHECK_INTERVAL_MINUTES
-ANNOUNCEMENT_CHANNEL_ID=$ANNOUNCEMENT_CHANNEL_ID
-CTF_CHANNEL_CATETORY_ID=$CTF_CHANNEL_CATETORY_ID
 
-# Misc
-TIMEZONE="$TIMEZONE"
+# Database Configuration
+DATABASE_URL="$DATABASE_URL"
 EOF
 
 echo -e "${GREEN}✓ Configuration complete! .env file created successfully.${NC}"
@@ -209,7 +245,7 @@ while true; do
             echo -e "${CYAN}   ./run.sh${NC}"
             echo ""
             echo -e "${YELLOW}Or run manually with:${NC}"
-            echo -e "${BLUE}   uv run python ctfeed.py${NC}"
+            echo -e "${BLUE}   bash ./startup.sh${NC}"
             echo -e "${BLUE}   sudo docker-compose up -d --build${NC}"
             exit 0
             ;;
