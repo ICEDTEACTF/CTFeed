@@ -36,13 +36,9 @@ async def create_custom_event(
 
 # read
 @router.get("/")
-@router.get("/{event_db_id}")
 async def read_event(
-    event_db_id:Optional[int]=None,
-    type:Optional[Literal["ctftime", "custom"]]=None,
+    type:Literal["ctftime", "custom"],
     archived:Optional[bool]=None,
-    channel_id:Optional[int]=None,
-    event_id:Optional[int]=None,
     session:AsyncSession=Depends(fastapi_get_db),
     member:discord.Member=Depends(security.fastapi_check_user)
 ) -> List[schema.Event]:
@@ -50,11 +46,25 @@ async def read_event(
         events = await event_backend.get_event(
             session=session,
             type=type,
-            archived=archived,
-            id=event_db_id,
-            channel_id=channel_id,
-            event_id=event_id
+            archived=archived
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"fail to read Events: {str(e)}")
+        raise HTTPException(500, "fail to read Events")
+    
+    return events
+
+
+@router.get("/{event_db_id}")
+async def read_event(
+    event_db_id:int,
+    session:AsyncSession=Depends(fastapi_get_db),
+    member:discord.Member=Depends(security.fastapi_check_user)
+) -> List[schema.Event]:
+    try:
+        events = await event_backend.get_event(session=session, id=event_db_id)
     except HTTPException:
         raise
     except Exception as e:

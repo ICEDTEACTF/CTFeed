@@ -16,24 +16,21 @@ logger = logging.getLogger("uvicorn")
 
 
 # functions
-# todo
 async def get_event(
     session:AsyncSession,
-    type:Optional[Literal["ctftime", "custom"]]=None,
-    archived:Optional[bool]=None,
+    # one
     id:Optional[int]=None,
-    channel_id:Optional[int]=None,
-    event_id:Optional[int]=None
+    # many
+    type:Optional[Literal["ctftime", "custom"]]=None,
+    archived:Optional[bool]=None
 ) -> List[Event]:
     """
     Get Events.
     
     :param session:
+    :param id:
     :param type:
     :param archived:
-    :param id:
-    :param channel_id:
-    :param event_id:
     
     :return List[Event]:
     
@@ -46,46 +43,27 @@ async def get_event(
         raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
     
     # build arguments
-    should_limit = id is None and channel_id is None and event_id is None
-    use_finish_after:Optional[int] = None
-    if should_limit and type != "custom":
-        use_finish_after = int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
+    finish_after = int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
     
     # get events from database
     try:
         async with session.begin():
-            if type is None and use_finish_after is not None:
-                db_events_ctftime = await crud.read_event(
-                    session=session,
-                    type="ctftime",
-                    archived=archived,
-                    id=id,
-                    channel_id=channel_id,
-                    event_id=event_id,
-                    finish_after=use_finish_after
-                )
-                db_events_custom = await crud.read_event(
-                    session=session,
-                    type="custom",
-                    archived=archived,
-                    id=id,
-                    channel_id=channel_id,
-                    event_id=event_id,
-                    finish_after=None
-                )
-                db_events = [*db_events_ctftime, *db_events_custom]
+            if id is not None:
+                # one
+                events_db = await crud.read_event(session=session, id=id)
+                if len(events_db) != 1:
+                    raise HTTPException(404, f"Event (id={id}) not found")
             else:
-                db_events = await crud.read_event(
+                # many
+                if type not in ["ctftime", "custom"]:
+                    raise HTTPException(400, "type should be ctftime or custom when id is None")
+                
+                events_db = await crud.read_event(
                     session=session,
                     type=type,
                     archived=archived,
-                    id=id,
-                    channel_id=channel_id,
-                    event_id=event_id,
-                    finish_after=use_finish_after
+                    finish_after=(finish_after if type == "ctftime" else None)
                 )
-            if id is not None and len(db_events) != 1:
-                raise HTTPException(404, f"Event (id={id}) not found")
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
@@ -93,7 +71,7 @@ async def get_event(
         raise HTTPException(500, "fail to read Events from database")
     
     result:List[Event] = []
-    for event in db_events:
+    for event in events_db:
         # event attributes
         event_type:Literal["ctftime", "custom"] = "ctftime" if event.event_id is not None else "custom"
         
