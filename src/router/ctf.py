@@ -36,7 +36,7 @@ async def create_custom_event(
 
 # read
 @router.get("/")
-async def read_event(
+async def read_event_all(
     type:Literal["ctftime", "custom"],
     archived:Optional[bool]=None,
     session:AsyncSession=Depends(fastapi_get_db),

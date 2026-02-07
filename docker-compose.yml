@@ -21,8 +21,8 @@ services:
       - ./uv.lock:/app/uv.lock
       - ./README.md:/app/README.md
       - ./startup.sh:/app/startup.sh
-    mem_limit: 4G
-    cpus: 4
+    mem_limit: 700M
+    cpus: 1.5
     healthcheck:
       test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
