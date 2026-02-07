@@ -21,22 +21,26 @@ Before getting started, you'll need:
 1. Visit the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application
 2. Navigate to the "Bot" section and copy your **bot token** (keep this secure!)
 3. Navigate to the "OAuth2" section and copy your **Client ID** and **Client Secret** (keep these secure!)
-4. Generate an invite link and add the bot to your Discord server
-5. Configure the following bot permissions:
-    - **View Channels**
-    - **Manage Channels**
-    - **Send Messages and Create Posts**
-    - **Send Messages in Threads and Posts**
-    - **Create Public Threads**
-    - **Create Private Threads**
-    - **Embed links**
-    - **Add Reactions**
-    - **Bypass Slowmode**
-    - **Manage Threads and Posts**
-    - **Read Message History**
-    - **Use Application Commands**
-    - **Create Events**
-    - **Manage Events**
+4. Configure the following scopes and bot permissions:
+    - Scopes
+        - applications.commands
+        - bot
+    - Bot Permissions
+        - Manage Channels
+        - View Channels
+        - Manage Events
+        - Create Events
+        - Send Messages
+        - Create Public Threads
+        - Create Private Threads
+        - Send Messages in Threads
+        - Manage Threads
+        - Embed Links
+        - Read Message History
+        - Add Reactions
+        - Use Slash Commands
+        - Bypass Slowmode
+5. Generate an invite link and add the bot to your Discord server
 
 ## Domain
 Follow the instructions here or the web interface may not work.

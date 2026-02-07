@@ -70,7 +70,7 @@ app = FastAPI(debug=False, lifespan=lifespan)
 # middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.HTTP_FRONTEND_URL],
+    allow_origins=[settings.HTTP_FRONTEND_URL, settings.HTTP_API_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,7 +82,7 @@ app.add_middleware(
     domain=settings.HTTP_COOKIE_DOMAIN,
     path="/",
     same_site="Lax",
-    https_only=True,
+    https_only=settings.HTTP_COOKIE_SECURE,
     max_age=settings.HTTP_COOKIE_MAX_AGE,
 )
 

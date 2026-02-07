@@ -17,13 +17,14 @@ class Settings(BaseSettings):
     # HTTP API configuration
     HTTP_SECRET_KEY:str
     HTTP_FRONTEND_URL:str               # for example https://example.com
+    HTTP_API_URL:str                    # for example https://api.example.com
     HTTP_COOKIE_DOMAIN:str              # for example .example.com
+    HTTP_COOKIE_SECURE:bool
     HTTP_COOKIE_MAX_AGE:int=60*60*24*30 # in seconds, default 30 days
     
     # Discord OAuth2 configuration
     DISCORD_OAUTH2_CLIENT_ID:str
     DISCORD_OAUTH2_CLIENT_SECRET:str
-    DISCORD_OAUTH2_REDIRECT_URI:str=""
     
     # CTFTime configuration
     CHECK_INTERVAL_MINUTES:int
@@ -39,7 +40,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-settings.DISCORD_OAUTH2_REDIRECT_URI = settings.HTTP_FRONTEND_URL + "/auth/login"
 settings.CTFTIME_API_EVENT = settings.CTFTIME_API + "/events/"
 settings.CTFTIME_API_TEAM = settings.CTFTIME_API + "/teams/"
 

@@ -112,18 +112,34 @@ done
 
 echo ""
 echo "HTTP Frontend URL:"
-echo "   Default is https://example.com"
-read -p "   Enter HTTP frontend URL (press Enter for default https://example.com): " HTTP_FRONTEND_URL
+echo "   Default is https://bot.example.com"
+read -p "   Enter HTTP frontend URL (press Enter for default https://bot.example.com): " HTTP_FRONTEND_URL
 if [ -z "$HTTP_FRONTEND_URL" ]; then
-    HTTP_FRONTEND_URL="https://example.com"
+    HTTP_FRONTEND_URL="https://bot.example.com"
+fi
+
+echo ""
+echo "HTTP API URL:"
+echo "   Default is https://api.bot.example.com"
+read -p "   Enter HTTP API URL (press Enter for default https://api.bot.example.com): " HTTP_API_URL
+if [ -z "$HTTP_API_URL" ]; then
+    HTTP_API_URL="https://api.bot.example.com"
 fi
 
 echo ""
 echo "HTTP Cookie Domain:"
-echo "   Default is .example.com"
-read -p "   Enter HTTP cookie domain (press Enter for default .example.com): " HTTP_COOKIE_DOMAIN
+echo "   Default is .bot.example.com"
+read -p "   Enter HTTP cookie domain (press Enter for default .bot.example.com): " HTTP_COOKIE_DOMAIN
 if [ -z "$HTTP_COOKIE_DOMAIN" ]; then
-    HTTP_COOKIE_DOMAIN=".example.com"
+    HTTP_COOKIE_DOMAIN=".bot.example.com"
+fi
+
+echo ""
+echo "HTTP Cookie Secure:"
+echo "   Default is true"
+read -p "   Enter HTTP cookie secure (true/false, press Enter for default true): " HTTP_COOKIE_SECURE
+if [ -z "$HTTP_COOKIE_SECURE" ]; then
+    HTTP_COOKIE_SECURE="true"
 fi
 
 echo ""
@@ -174,7 +190,9 @@ echo "   Discord Bot Token: ${DISCORD_BOT_TOKEN:0:30}********** (hidden)"
 echo "   Guild ID: $GUILD_ID"
 echo "   HTTP Secret Key: ${HTTP_SECRET_KEY:0:10}********** (hidden)"
 echo "   HTTP Frontend URL: $HTTP_FRONTEND_URL"
+echo "   HTTP API URL: $HTTP_API_URL"
 echo "   HTTP Cookie Domain: $HTTP_COOKIE_DOMAIN"
+echo "   HTTP Cookie Secure: $HTTP_COOKIE_SECURE"
 echo "   Discord OAuth2 Client ID: $DISCORD_OAUTH2_CLIENT_ID"
 echo "   Discord OAuth2 Client Secret: ${DISCORD_OAUTH2_CLIENT_SECRET:0:10}********** (hidden)"
 echo "   Check Interval: $CHECK_INTERVAL_MINUTES minutes"
@@ -210,7 +228,9 @@ GUILD_ID=$GUILD_ID
 # HTTP API Configuration
 HTTP_SECRET_KEY=$HTTP_SECRET_KEY
 HTTP_FRONTEND_URL=$HTTP_FRONTEND_URL
+HTTP_API_URL=$HTTP_API_URL
 HTTP_COOKIE_DOMAIN=$HTTP_COOKIE_DOMAIN
+HTTP_COOKIE_SECURE=$HTTP_COOKIE_SECURE
 
 # Discord OAuth2 Configuration
 DISCORD_OAUTH2_CLIENT_ID=$DISCORD_OAUTH2_CLIENT_ID
