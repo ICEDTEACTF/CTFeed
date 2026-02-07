@@ -27,6 +27,7 @@ Before getting started, you'll need:
         - bot
     - Bot Permissions
         - Manage Channels
+        - Manage Roles
         - View Channels
         - Manage Events
         - Create Events

@@ -71,7 +71,10 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
             await crud.delete_user_in_event(session, id=event_db.id, lock_owner_token=lock_owner_token)
             
             # create channel
-            overwrites = {guild.default_role: discord.PermissionOverwrite(view_channel=False)}
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                guild.me: discord.PermissionOverwrite(view_channel=True)
+            }
             channel = await guild.create_text_channel(name=event_db.title, category=ctf_channel_category, overwrites=overwrites)
             
             # update database
