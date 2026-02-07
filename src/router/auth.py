@@ -43,7 +43,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def redirect_discord(request:Request):
     return (await oauth.discord.authorize_redirect(
         request,
-        settings.DISCORD_OAUTH2_REDIRECT_URI
+        settings.HTTP_API_URL + "/auth/login"
     ))
 
 
