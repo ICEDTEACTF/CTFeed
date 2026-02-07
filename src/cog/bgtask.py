@@ -60,7 +60,7 @@ class CTFBGTask(commands.Cog):
             try:
                 event_db_id:int = int(custom_id.split(":")[1])
             except Exception:
-                await interaction.response.send_message("Invalid arguments")
+                await interaction.response.send_message("Invalid arguments", ephemeral=True)
                 return
             
             # join channel
