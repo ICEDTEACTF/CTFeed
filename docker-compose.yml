@@ -7,8 +7,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
-      - 5000:5000/tcp
+      - 127.0.0.1:5000:5000/tcp
     volumes:
       - ./src:/app/src
       - ./ctfeed.py:/app/ctfeed.py
