@@ -7,6 +7,7 @@ import discord
 
 from src import schema
 from src import crud
+from src.bot import get_guild
 from src.database import model
 from src.database import database
 from src.config import settings, settings_lock
@@ -49,7 +50,7 @@ async def check_config_valid_obj(guild:discord.Guild, key:str, value:Any) -> Tup
     return msg, _
 
 
-async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.ConfigResponse:
+async def read_config(key:Optional[str]=None) -> schema.ConfigResponse:
     """
     Read config.
     
@@ -61,10 +62,7 @@ async def read_config(bot:commands.Bot, key:Optional[str]=None) -> schema.Config
     :raise HTTPException:
     """
     # get guild
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get config
     cache_config = {}
@@ -123,7 +121,7 @@ async def update_config_cache(config:model.Config):
                 logger.critical(f"fail to update cache of config (key={_k}) (maybe src.database.model.Config, src.database.model.config_info and src.config are out of sync): {str(e)}")
 
 
-async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
+async def update_config(kv:Optional[Tuple]):
     """
     Update Config in database and cache.
     
@@ -133,10 +131,7 @@ async def update_config(bot:commands.Bot, kv:Optional[Tuple]):
     :raise HTTPException:
     """
     # get guild
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # check arguments
     arg = {}

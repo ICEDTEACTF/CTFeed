@@ -13,7 +13,7 @@ from src.utils import notification
 from src.utils import get_category
 from src.utils import ctf_api
 from src.utils import embed_creator
-from src.bot import get_bot
+from src.bot import get_guild
 from src import crud
 
 # channel_op = "event_op"
@@ -51,10 +51,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db:
     log_msg:str = ""
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get category
     if (ctf_channel_category := get_category.get_category(guild, settings.CTF_CHANNEL_CATEGORY_ID)) is None:
@@ -124,10 +121,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db:
 async def _join_channel(session:AsyncSession, member:discord.Member, event_db:model.Event, lock_owner_token:str):
     # 在這個 function 有 exception 就直接 raise 出來
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     joined_channel = False  # joined channel in Discord, but not in database
     joined = False          # joined channel in Discord and database
@@ -230,10 +224,7 @@ async def archive_event(event_db_id:int, reason:str):
     event_db_returning = {}
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get archive category
     if (archive_category := get_category.get_category(guild, settings.ARCHIVE_CATEGORY_ID)) is None:
@@ -330,10 +321,7 @@ async def link_event_to_channel(event_db_id:int, channel_id:int):
     lock_owner_token = None
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get channel
     if (channel := guild.get_channel(channel_id)) is None or \
@@ -377,10 +365,7 @@ async def create_custom_event(title:str):
     :raise HTTPException:
     """
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # create the custom event in database
     event_db_id = None

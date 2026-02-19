@@ -1,12 +1,11 @@
 from typing import Optional
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Depends
 import discord
 
 from src.backend import security
 from src.backend import config as config_backend
-from src.bot import get_bot
 from src import schema
 
 # logger
@@ -22,9 +21,8 @@ async def read_config(
     key:Optional[str]=None,
     member:discord.Member=Depends(security.fastapi_check_administrator)
 ) -> schema.ConfigResponse:
-    bot = await get_bot()
     try:
-        config_info = await config_backend.read_config(bot, key)
+        config_info = await config_backend.read_config(key)
     except HTTPException:
         raise
     except Exception as e:
@@ -42,9 +40,8 @@ async def update_config(
     member:discord.Member=Depends(security.fastapi_check_administrator),
 ) -> schema.General:
     # update config
-    bot = await get_bot()
     try:
-        await config_backend.update_config(bot, (key, data.value))
+        await config_backend.update_config((key, data.value))
     except HTTPException:
         raise
     except Exception as e:

@@ -8,7 +8,7 @@ import discord
 
 from src.config import settings, settings_lock
 from src.database.database import with_get_db
-from src.bot import get_bot
+from src.bot import get_guild
 from src import schema
 from src import crud
 
@@ -44,12 +44,10 @@ async def check_administrator(discord_id:int) -> Optional[discord.Member]:
     :param discord_id:
     
     :return Optional[discord.Member]:
+    
+    :raise HTTPException:
     """
-    bot = await get_bot()
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        return None
+    guild = get_guild()
     
     # check whether the user is in the guild
     member = guild.get_member(discord_id)
@@ -76,13 +74,8 @@ async def check_user(discord_id:int, force_pm:bool) -> discord.Member:
     
     :raise HTTPException:
     """
-    bot:commands.Bot = await get_bot()
-    
     # get guild
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get member
     member = guild.get_member(discord_id)
@@ -152,7 +145,13 @@ async def check_user_and_auto_register(
 
 # for discord
 async def discord_check_administrator(interaction:discord.Interaction) -> bool:
-    if (await check_administrator(interaction.user.id)) is None:
+    try:
+        member = await check_administrator(interaction.user.id)
+    except HTTPException:
+        await interaction.response.send_message(f"Guild (id={settings.GUILD_ID}) not found", ephemeral=True)
+        return False
+    
+    if member is None:
         await interaction.response.send_message("Forbidden", ephemeral=True)
         return False
     return True

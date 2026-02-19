@@ -4,6 +4,7 @@ import glob
 import pathlib
 import traceback
 
+from fastapi import HTTPException
 from discord.ext import commands
 import discord
 
@@ -44,7 +45,7 @@ def load_cogs():
 # global error handler
 @bot.event
 async def on_error(event: str, *args, **kwargs):
-    logger.error(f"Unhandled exception in event ({event}): {"".join(traceback.format_exc())}")
+    logger.error(f"Unhandled exception in event ({event}): {''.join(traceback.format_exc())}")
 
 
 # startup and shutdown
@@ -68,5 +69,20 @@ async def stop_bot():
         
 
 # get bot
-async def get_bot() -> commands.Bot:
+def get_bot() -> commands.Bot:
     return bot
+
+
+# get guild
+def get_guild() -> discord.Guild:
+    """
+    Get the guild.
+    
+    :return discord.Guild:
+    
+    :raise HTTPException:
+    """
+    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
+        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    return guild

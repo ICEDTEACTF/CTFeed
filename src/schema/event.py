@@ -14,12 +14,6 @@ class RelinkEvent(BaseModel):
 
 
 # response schema
-class DiscordChannel(BaseModel):
-    id:int
-    jump_url:str
-    name:str
-
-
 class EventSimple(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -32,7 +26,7 @@ class EventSimple(BaseModel):
     finish:Optional[int]=None
     
     channel_id:Optional[int]=None
-    channel:Optional[DiscordChannel]=None
+    channel:Optional["DiscordTextChannel"]=None
     scheduled_event_id:Optional[int]=None
     
     # extra attrbutes

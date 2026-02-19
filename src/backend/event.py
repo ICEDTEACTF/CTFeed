@@ -1,14 +1,10 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional, List, Literal
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 import discord
 
 from src.database import model
-from src.bot import get_bot
-from src.config import settings
 from src.backend import security
 from src import schema
 
@@ -38,11 +34,11 @@ async def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List
                 now_running = False
         
         # channel
-        channel:Optional[schema.DiscordChannel] = None
+        channel:Optional[schema.DiscordTextChannel] = None
         if event.channel_id is not None:
             discord_channel = guild.get_channel(event.channel_id)
             if isinstance(discord_channel, discord.TextChannel):
-                channel = schema.DiscordChannel(
+                channel = schema.DiscordTextChannel(
                     id=discord_channel.id,
                     jump_url=discord_channel.jump_url,
                     name=discord_channel.name
@@ -88,11 +84,3 @@ async def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List
         ))
     
     return result
-
-
-async def get_guild() -> discord.Guild:
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
-    return guild

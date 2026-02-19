@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from src.database import model
 from src.backend import security
 from src.schema import UserRole, User, DiscordUser, EventSimple
-from src.bot import get_bot
+from src.bot import get_guild
 from src.config import settings
 from src import crud
 
@@ -28,10 +28,7 @@ async def get_user(session:AsyncSession, discord_id:Optional[int]=None) -> List[
     :raise HTTPException:
     """
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get user from database
     try:

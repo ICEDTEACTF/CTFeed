@@ -7,7 +7,7 @@ from src.utils import ctf_api
 from src.utils import embed_creator
 from src.utils import notification
 from src.config import settings
-from src.bot import get_bot
+from src.bot import get_guild
 from src.backend import channel_op
 from src import crud
 
@@ -27,10 +27,9 @@ async def check_and_update_event(event_db_id:int, event_api:Dict[str, Any]):
     event_db_returning = {"updated": False}
     
     # get guild
-    bot = await get_bot()
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+    try:
+        guild = get_guild()
+    except Exception:
         return
     
     # update database

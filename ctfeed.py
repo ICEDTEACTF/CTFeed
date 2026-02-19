@@ -91,6 +91,7 @@ app.include_router(router.auth_router)
 app.include_router(router.user_router)
 app.include_router(router.ctf_router)
 app.include_router(router.config_router)
+app.include_router(router.guild_router)
 
 # index
 @app.get("/", tags=["Shirakami Fubuki"])

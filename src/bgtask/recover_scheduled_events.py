@@ -5,7 +5,7 @@ import logging
 import discord
 
 from src.database import database
-from src.bot import get_bot
+from src.bot import get_guild
 from src.config import settings
 from src import crud
 
@@ -15,9 +15,9 @@ logger = logging.getLogger("uvicorn")
 # functions
 async def do_recover(event_db_id:int):
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+    try:
+        guild = get_guild()
+    except Exception:
         return
     
     lock_owner_token:Optional[str] = None
