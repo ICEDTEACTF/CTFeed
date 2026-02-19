@@ -67,7 +67,7 @@ async def read_all_ctftime_event(
         raise HTTPException(500, "fail to read Events from database")
     
     # format and return
-    return event_backend.format_event((await event_backend.get_guild()), events_db)
+    return (await event_backend.format_event((await event_backend.get_guild()), events_db))
 
 
 @router.get("/custom")
@@ -94,7 +94,7 @@ async def read_all_custom_event(
         raise HTTPException(500, "fail to read Events from database")
     
     # format and return
-    return event_backend.format_event((await event_backend.get_guild()), events_db)
+    return (await event_backend.format_event((await event_backend.get_guild()), events_db))
 
 
 @router.get("/{event_db_id}")
@@ -117,7 +117,7 @@ async def read_event(
         raise HTTPException(500, f"fail to read Event (id={event_db_id}) from database")
     
     # format and return
-    return event_backend.format_event((await event_backend.get_guild()), [event_db])[0]
+    return (await event_backend.format_event((await event_backend.get_guild()), [event_db]))[0]
 
 
 # update - join

@@ -9,15 +9,15 @@ import discord
 from src.database import model
 from src.bot import get_bot
 from src.config import settings
+from src.backend import security
 from src import schema
-from src import crud
 
 # logging
 logger = logging.getLogger("uvicorn")
 
 
 # functions
-def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List[schema.Event]:
+async def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List[schema.Event]:
     """
     :param guild:
     :param events_db:
@@ -52,6 +52,7 @@ def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List[schem
         users:List[schema.UserSimple] = []
         for db_user in event.users:
             discord_user:Optional[schema.DiscordUser] = None
+            user_role:List[schema.UserRole] = []
             member = guild.get_member(db_user.discord_id)
             if member is not None:
                 discord_user = schema.DiscordUser(
@@ -59,9 +60,12 @@ def format_event(guild:discord.Guild, events_db:List[model.Event]) -> List[schem
                     id=member.id,
                     name=member.name
                 )
+                
+                user_role = await security.get_role(member)
             
             users.append(schema.UserSimple(
                 discord_id=db_user.discord_id,
+                user_role=user_role,
                 status=db_user.status,
                 skills=db_user.skills,
                 rhythm_games=db_user.rhythm_games,

@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from src.database import model
 from src.backend import security
-from src.schema import User, DiscordUser, EventSimple
+from src.schema import UserRole, User, DiscordUser, EventSimple
 from src.bot import get_bot
 from src.config import settings
 from src import crud
@@ -79,15 +79,19 @@ async def get_user(session:AsyncSession, discord_id:Optional[int]=None) -> List[
 
         # discord user
         discord_user:Optional[DiscordUser] = None
+        user_role:List[UserRole] = []
         if member is not None:
             discord_user = DiscordUser(
                 display_name=member.display_name,
                 id=member.id,
                 name=member.name
             )
+            
+            user_role = await security.get_role(member)
 
         result.append(User(
             discord_id=db_user.discord_id,
+            user_role=user_role,
             status=db_user.status,
             skills=db_user.skills,
             rhythm_games=db_user.rhythm_games,

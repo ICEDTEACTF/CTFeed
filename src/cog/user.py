@@ -33,17 +33,18 @@ class UserMenu(discord.ui.View):
         
         # build embed
         color = discord.Color.green() if user_s.status == model.Status.online else discord.Color.red()
+        user_role_s = ", ".join([r.value for r in user_s.user_role])
         
         if user_s.discord is not None:
             embed = discord.Embed(
                 title=f"{user_s.discord.display_name}",
-                description=f"Name: {user_s.discord.name}\nID: {user_s.discord.id}",
+                description=f"Name: {user_s.discord.name}\nID: {user_s.discord.id}\nRoles: {user_role_s}",
                 color=color
             )
         else:
             embed = discord.Embed(
                 title=f"(Invalid)",
-                description=f"Name: (Invalid)\nID: {user_s.discord_id}",
+                description=f"Name: (Invalid)\nID: {user_s.discord_id}\nRoles: {user_role_s}",
                 color=color
             )
         

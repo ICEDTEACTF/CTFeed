@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional, List
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
 
@@ -13,6 +14,12 @@ class UpdateUser(BaseModel):
 
 
 # get
+class UserRole(Enum):
+    administrator="Administrator"
+    pm="pm"
+    member="member"
+
+
 class DiscordUser(BaseModel):
     display_name:str
     id:int
@@ -23,6 +30,7 @@ class UserSimple(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     discord_id:int
+    user_role:List[UserRole]
     
     status:model.Status
     skills:List[model.Skills]

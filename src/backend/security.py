@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from sqlalchemy.exc import IntegrityError
@@ -9,10 +9,30 @@ import discord
 from src.config import settings, settings_lock
 from src.database.database import with_get_db
 from src.bot import get_bot
+from src import schema
 from src import crud
 
 # logging
 logger = logging.getLogger("uvicorn")
+
+# utils
+async def get_role(member:discord.Member) -> List[schema.UserRole]:
+    roles = []
+    if member.guild_permissions.administrator == True:
+        roles.append(schema.UserRole.administrator)
+    
+    async with settings_lock:
+        pm_role_id = settings.PM_ROLE_ID
+        member_role_id = settings.MEMBER_ROLE_ID
+    
+    if member.get_role(pm_role_id):
+        roles.append(schema.UserRole.pm)
+    
+    if member.get_role(member_role_id):
+        roles.append(schema.UserRole.member)
+    
+    return roles
+    
 
 # functions
 async def check_administrator(discord_id:int) -> Optional[discord.Member]:

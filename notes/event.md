@@ -73,3 +73,26 @@
     - 排序：``ORDER BY id DESC``
     - 下一頁條件：``id < before_id``
 - 參數組合會在函式內做嚴格檢查，不合法時拋 ``ValueError``
+
+
+### ``ctfmenu``（EventMenu / EventDetailMenu）
+
+#### 用途
+- Discord 互動式 Event 清單檢視（ctftime / custom）
+- 提供分頁、切換 type、查看單筆 Event 詳細資訊
+
+#### 設計說明
+- View timeout 設為 ``60s``，避免互動元件長時間掛著
+- ``ctftime`` 清單採「首次查詢後快取」：
+  - 第一次 ``build_embed_and_view()`` 查一次資料庫
+  - 後續翻頁只吃記憶體快取，不重查 DB
+- ``custom`` 清單採 cursor 分頁（``before_id`` + ``limit``）：
+  - 每頁查 ``per_page + 1`` 判斷 ``has_next``
+  - 使用 page cache（以頁碼快取已讀頁資料）避免回上一頁時被新資料擠動
+- ``EventDetailMenu`` 使用 ``read_event_one(lock=False, ...)`` 讀單筆，找不到時回傳 ``Event not found``
+
+#### 常見坑
+- ``custom`` 分頁如果每次都重查 DB（不做頁面快取），新資料插入後會造成頁面漂移或看起來「有些 event 被擠掉」
+- ``ctftime`` 模式若每次翻頁都重查 DB，會有不必要的負擔；此場景改用快取較穩定
+- ``read_event_many`` 需明確傳 mode 參數（即使是 ``None`` 也傳）以提升可讀性並符合本專案規範
+- ``read_event_one`` / lock 流程內部使用 ``session.begin()``，caller 不要在外層再包 transaction 以避免巢狀交易風險
