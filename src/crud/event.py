@@ -230,7 +230,7 @@ async def join_event(
     
     # execute
     try:
-        result = (await session.execute(stmt)).one()
+        (await session.execute(stmt)).one()
         await session.flush()
         return
     except Exception:
@@ -351,6 +351,7 @@ async def create_event(
     try:
         result = (await session.execute(stmt)).scalar_one()
         await session.flush()
+        await session.refresh(result)
         return result
     except Exception:
         raise
@@ -367,6 +368,8 @@ async def read_event_one(
 ) -> Tuple[Event, Optional[str]]:
     """
     Read one Event and try to lock an Event (if you want).
+    
+    Inside this function, it uses ``async with session.begin()``.
     
     :param session:
     :param id:
@@ -671,6 +674,7 @@ async def update_event(
     try:
         result = (await session.execute(stmt)).scalar_one()
         await session.flush()
+        await session.refresh(result)
         return result
     except Exception:
         raise

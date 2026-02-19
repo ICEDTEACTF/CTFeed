@@ -30,11 +30,14 @@ async def _detect_events_new():
     # archived=None - get both archived and non-archived events to avoid missing any events
     try:
         async with database.with_get_db() as session:
-            events_db = await crud.read_event(
+            events_db = await crud.read_event_many(
                 session,
                 type="ctftime",
                 archived=None,
-                finish_after=int((datetime.now(timezone.utc)+timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
+                limit=None,
+                finish_after=int((datetime.now(timezone.utc)+timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp()),
+                finish_before=None,
+                before_id=None
             )
             events_db_event_id = [event.event_id for event in events_db]
     except Exception as e:

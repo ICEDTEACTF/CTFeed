@@ -8,16 +8,13 @@
   - ``finish_after`` mode: ``finish_after=int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())``
   - 我們需要限制讀出的數量，避免 DoS
   - 為避免日後讀取程式碼困難，使用不同的 mode 需要明確傳參（如 finish_before=None，就算是 None 也要傳）
-
-<!--
 - 請確保在操作 Database 中的 events table 時遵循以下流程，並確保整個流程被包覆在``try...except...finally...``中：
-  1. 使用 ``src.crud.try_lock_event`` 對單個 event 加鎖
-  2. 從資料庫中讀取新的 Event 物件
-  3. （如果有需要，如創建頻道後將 ID 更新到資料庫）操作 Discord Bot
-  4. 更新資料庫中的資料
-  5. 在``finally...``區塊中解鎖
-  6. 如有發生錯誤，在``except...``區塊中 rollback（例如：刪除創建出來的 Discord channel）
--->
+  1. 使用 ``src.crud.read_event(..., lock=True, duration=120) 對單個 event 加鎖，並獲取物件
+  2. （如果有需要，如創建頻道後將 ID 更新到資料庫）操作 Discord Bot
+  3. 更新資料庫中的資料
+  4. 在``finally...``區塊中解鎖
+  5. 如有發生錯誤，在``except...``區塊中 rollback（例如：刪除創建出來的 Discord channel）
+  - 純讀取不受此限制
 
 ## Docs
 

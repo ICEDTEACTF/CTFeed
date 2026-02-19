@@ -59,6 +59,7 @@ async def create_or_update_config(
     try:
         result = (await session.execute(stmt)).scalar_one()
         await session.flush()
+        await session.refresh(result)
         return result
     except Exception:
         raise

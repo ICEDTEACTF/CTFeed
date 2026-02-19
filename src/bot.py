@@ -2,6 +2,7 @@ import logging
 import asyncio
 import glob
 import pathlib
+import traceback
 
 from discord.ext import commands
 import discord
@@ -38,6 +39,12 @@ def load_cogs():
             logger.info(f"{extension_name} loaded")
         except Exception as e:
             logger.critical(f"fail to load {extension_name}: {str(e)}")
+
+
+# global error handler
+@bot.event
+async def on_error(event: str, *args, **kwargs):
+    logger.error(f"Unhandled exception in event ({event}): {"".join(traceback.format_exc())}")
 
 
 # startup and shutdown
