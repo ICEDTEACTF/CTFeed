@@ -287,6 +287,20 @@ class EventDetailMenu(discord.ui.View):
         return member
 
 
+    async def _check_administrator_permission(self, interaction: discord.Interaction) -> Optional[discord.Member]:
+        if await security.discord_check_administrator(interaction) is False:
+            return None
+
+        member = interaction.user
+        if isinstance(member, discord.Member) is False:
+            return None
+
+        if member.id != self.owner_id:
+            await interaction.response.send_message("You are not the owner of this view", ephemeral=True)
+            return None
+        return member
+
+
     async def _read_event(self) -> Optional[model.Event]:
         try:
             async with database.with_get_db() as session:
@@ -331,20 +345,28 @@ class EventDetailMenu(discord.ui.View):
 
         # build view
         pm_member = None
+        admin_member = None
         try:
             pm_member = await security.check_user(self.owner_id, True)
         except Exception:
             pass
+        try:
+            admin_member = await security.check_administrator(self.owner_id)
+        except Exception:
+            pass
         if pm_member:
-            if self.relink_channel not in self.children:
-                self.add_item(self.relink_channel)
             if self.archive_event not in self.children:
                 self.add_item(self.archive_event)
         else:
-            if self.relink_channel in self.children:
-                self.remove_item(self.relink_channel)
             if self.archive_event in self.children:
                 self.remove_item(self.archive_event)
+
+        if admin_member:
+            if self.relink_channel not in self.children:
+                self.add_item(self.relink_channel)
+        else:
+            if self.relink_channel in self.children:
+                self.remove_item(self.relink_channel)
 
         return embed
 
@@ -403,7 +425,7 @@ class EventDetailMenu(discord.ui.View):
     )
     async def relink_channel(self, select: discord.ui.Select, interaction: discord.Interaction):
         # check permission
-        if await self._check_permission(interaction, True) is None:
+        if await self._check_administrator_permission(interaction) is None:
             return
         
         # argument check
