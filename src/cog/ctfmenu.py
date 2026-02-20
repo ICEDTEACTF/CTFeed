@@ -163,6 +163,7 @@ class EventMenu(discord.ui.View):
             lines = []
             for idx, e in enumerate(current, start=display_start + 1):
                 channel_created = "[⭐️ Channel created]" if e.channel_id is not None else ""
+                users_count = len(e.users)
                 
                 if self.type == "ctftime":
                     time_now = int(datetime.now(timezone.utc).timestamp())
@@ -173,11 +174,13 @@ class EventMenu(discord.ui.View):
                         lines.append(f"{channel_created}{now_running}")
                     lines.append(f"Start: <t:{e.start}:F> (<t:{e.start}:R>)")
                     lines.append(f"End: <t:{e.finish}:F> (<t:{e.finish}:R>)")
+                    lines.append(f"Participants: {users_count}")
                     lines.append(f"")
                 else:
                     lines.append(f"**[ID: {e.id}] {e.title}**")
                     if len(channel_created) != 0:
                         lines.append(f"{channel_created}")
+                    lines.append(f"Participants: {users_count}")
                     lines.append("")
             description = "\n".join(lines)
 
