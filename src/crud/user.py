@@ -29,6 +29,7 @@ async def create_user(session:AsyncSession, discord_id:int) -> User:
     try:
         result = (await session.execute(stmt)).scalar_one()
         await session.flush()
+        await session.refresh(result)
         return result
     except Exception:
         raise
@@ -103,6 +104,7 @@ async def update_user(
     try:
         result = (await session.execute(stmt)).scalar_one()
         await session.flush()
+        await session.refresh(result)
         return result
     except Exception:
         raise

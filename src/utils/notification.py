@@ -3,7 +3,7 @@ from enum import Enum
 
 import discord
 
-from src.bot import get_bot
+from src.bot import get_guild
 from src.config import settings
 
 async def send_notification(
@@ -22,9 +22,9 @@ async def send_notification(
     
     :raise RuntimeError:
     """
-    bot = await get_bot()
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
+    try:
+        guild = get_guild()
+    except Exception:
         raise RuntimeError(f"Guild (id={settings.GUILD_ID}) not found")
     
     # args

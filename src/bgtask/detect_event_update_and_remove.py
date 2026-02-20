@@ -7,7 +7,7 @@ from src.utils import ctf_api
 from src.utils import embed_creator
 from src.utils import notification
 from src.config import settings
-from src.bot import get_bot
+from src.bot import get_guild
 from src.backend import channel_op
 from src import crud
 
@@ -27,41 +27,34 @@ async def check_and_update_event(event_db_id:int, event_api:Dict[str, Any]):
     event_db_returning = {"updated": False}
     
     # get guild
-    bot = await get_bot()
-    guild = bot.get_guild(settings.GUILD_ID)
-    if guild is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
+    try:
+        guild = get_guild()
+    except Exception:
         return
     
     # update database
     async with database.with_get_db() as session:
-        # try to lock the Event
+        # get a new event_db
         try:
-            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
+            event_db, lock_owner_token = await crud.read_event_one(
+                session=session,
+                lock=True, duration=120,
+                type="ctftime",
+                archived=False, # ensoure the event isn't archived
+                id=event_db_id
+            )
         except crud.NotFoundError:
-            logger.error(f"Event (id={event_db_id}) not found.")
+            logger.warning(f"Event (id={event_db_id}) not found.")
             return
         except crud.LockedError:
-            logger.info(f"Event (id={event_db_id}) was locked. Skipped...")
+            logger.warning(f"Event (id={event_db_id}) was locked. Skipped...")
             return
         except Exception as e:
-            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
+            logger.error(f"Can't get and lock Event (id={event_db_id}): {str(e)}")
             return
-        
+
         try:
             async with session.begin():
-                # get a new event_db
-                events_db = await crud.read_event(
-                    session=session,
-                    type="ctftime",
-                    archived=False, # ensure the event isn't archived
-                    id=event_db_id,
-                    lock_owner_token=lock_owner_token
-                )
-                if len(events_db) != 1:
-                    raise RuntimeError(f"Event (id={event_db_id}) not found")
-                event_db = events_db[0]
-                
                 # check
                 if event_db.title != ntitle or \
                         event_db.start != int(nstart.timestamp()) or \
@@ -149,11 +142,14 @@ async def _detect_event_update_and_remove():
     # get all non-archived CTFTime events from database
     try:
         async with database.with_get_db() as session:
-            events_db = await crud.read_event(
+            events_db = await crud.read_event_many(
                 session=session,
                 type="ctftime",
                 archived=False,
-                finish_after=int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
+                limit=None,
+                finish_after=int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp()),
+                finish_before=None,
+                before_id=None
             )
         
         events_db_returning = [

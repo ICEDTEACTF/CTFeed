@@ -24,7 +24,7 @@ class ConfigMenu(discord.ui.View):
         
         # build embed
         try:
-            config_info = await config.read_config(self.bot, self.state if self.state != "MAIN" else None)
+            config_info = await config.read_config(self.state if self.state != "MAIN" else None)
         except Exception as e:
             return discord.Embed(title=f"Fail to read config", description=str(e), color=discord.Color.red())
         
@@ -81,7 +81,7 @@ class ConfigMenu(discord.ui.View):
 
     async def on_change_page(self, interaction:discord.Interaction):
         # check permission
-        if not(await security.discord_check_administrator(interaction)):
+        if not (await security.discord_check_administrator(interaction)):
             return
         
         # check argument
@@ -125,7 +125,7 @@ class ConfigMenu(discord.ui.View):
         
         # update
         try:
-            await config.update_config(self.bot, (self.state, value))
+            await config.update_config((self.state, value))
         except Exception as e:
             await interaction.response.send_message(f"fail to update config (key={self.state}): {str(e)}", ephemeral=True)
             return

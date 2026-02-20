@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ from src.utils import notification
 from src.utils import get_category
 from src.utils import ctf_api
 from src.utils import embed_creator
-from src.bot import get_bot
+from src.bot import get_guild
 from src import crud
 
 # channel_op = "event_op"
@@ -21,8 +21,28 @@ from src import crud
 # logging
 logger = logging.getLogger("uvicorn")
 
+# utils
+async def read_event_one_wrapper(session:AsyncSession, event_db_id:int) -> Tuple[model.Event, str]:
+    try:
+        event_db, lock_owner_token = await crud.read_event_one(
+            session=session,
+            lock=True, duration=120,
+            archived=False, # ensoure the Event isn't archived
+            id=event_db_id
+        )
+    except crud.NotFoundError:
+        raise HTTPException(404, f"Event (id={event_db_id}) not found (archived, or invalid id)")
+    except crud.LockedError:
+        raise HTTPException(423, F"Event (id={event_db_id}) was locked. Try again later.")
+    except Exception as e:
+        logger.error(f"Can't get and lock Event (id={event_db_id}): {str(e)}")
+        raise HTTPException(500, f"Can't get and lock Event (id={event_db_id})")
+    
+    return event_db, lock_owner_token
+
+
 # functions
-async def _create_channel(session:AsyncSession, member:discord.Member, event_db_id:int, lock_owner_token:str):
+async def _create_channel(session:AsyncSession, member:discord.Member, event_db:model.Event, lock_owner_token:str) -> model.Event:
     # 在這個 function 有 exception 就直接 raise 出來
     channel:Optional[discord.TextChannel] = None
     event_api:Optional[Dict[str, Any]] = None
@@ -31,10 +51,7 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
     log_msg:str = ""
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get category
     if (ctf_channel_category := get_category.get_category(guild, settings.CTF_CHANNEL_CATEGORY_ID)) is None:
@@ -43,23 +60,13 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
     
     try:
         async with session.begin():
-            # get a new event_db
-            events_db = await crud.read_event(
-                session,
-                id=event_db_id,
-                archived=False, # ensure the event isn't archived
-                lock_owner_token=lock_owner_token
-            )
-            if len(events_db) != 1:
-                raise RuntimeError(f"Event (id={event_db_id}) not found")
-            event_db = events_db[0]
             ctftime_event = True if event_db.event_id is not None else False
             
             # check channel
             if (channel_id := event_db.channel_id) is not None and \
                     guild.get_channel(channel_id) is not None:
                 # exists -> no need to create
-                return
+                return event_db
 
             if ctftime_event:
                 events_api = await ctf_api.fetch_ctf_events(event_db.event_id)
@@ -107,38 +114,24 @@ async def _create_channel(session:AsyncSession, member:discord.Member, event_db_
         except Exception as e:
             logger.error(f"fail to send notification to channel (id={channel.id}): {str(e)}")
             # ignore exception
-    
-    return
+
+    return event_db
 
 
-async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id:int, lock_owner_token:str):
+async def _join_channel(session:AsyncSession, member:discord.Member, event_db:model.Event, lock_owner_token:str):
     # 在這個 function 有 exception 就直接 raise 出來
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     joined_channel = False  # joined channel in Discord, but not in database
     joined = False          # joined channel in Discord and database
     log_msg:str = ""
     try:
         async with session.begin():
-            # get a new event_db
-            events_db = await crud.read_event(
-                session,
-                id=event_db_id,
-                archived=False, # ensure the Event isn't archived
-                lock_owner_token=lock_owner_token
-            )
-            if len(events_db) != 1:
-                raise RuntimeError(f"Event (id={event_db_id}) not found")
-            event_db = events_db[0]
-            
             # check channel
             if (channel_id := event_db.channel_id) is None or \
                 (channel := guild.get_channel(channel_id)) is None:
-                raise RuntimeError(f"TextChannel for Event (id={event_db_id}) not found")
+                raise RuntimeError(f"TextChannel for Event (id={event_db.id}) not found")
             
             # join channel
             await channel.set_permissions(member, view_channel=True)
@@ -146,10 +139,10 @@ async def _join_channel(session:AsyncSession, member:discord.Member, event_db_id
             
             # update database
             try:
-                await crud.join_event(session, event_db_id, member.id, lock_owner_token)
+                await crud.join_event(session, event_db.id, member.id, lock_owner_token)
             except IntegrityError:
                 # ignore
-                raise HTTPException(409, f"The user (discord_id={member.id}) has joined the Event (id={event_db_id})")
+                raise HTTPException(409, f"The user (discord_id={member.id}) has joined the Event (id={event_db.id})")
             except Exception:
                 raise
             joined = True
@@ -196,22 +189,14 @@ async def create_and_join_channel(member:discord.Member, event_db_id:int):
     lock_owner_token:Optional[str] = None
     async with database.with_get_db() as session:
         # try to lock event
-        try:
-            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-        except crud.LockedError:
-            raise HTTPException(423, f"Event (id={event_db_id}) was locked. Try again later.")
-        except crud.NotFoundError:
-            raise HTTPException(404, f"Event (id={event_db_id}) not found")
-        except Exception as e:
-            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
-            raise HTTPException(f"Can't lock Event (id={event_db_id}): {str(e)}")
+        event_db, lock_owner_token = await read_event_one_wrapper(session, event_db_id)
 
         try:
             # try to create channel
-            await _create_channel(session, member, event_db_id, lock_owner_token)
+            event_db = await _create_channel(session, member, event_db, lock_owner_token)
             
             # join channel
-            await _join_channel(session, member, event_db_id, lock_owner_token)
+            await _join_channel(session, member, event_db, lock_owner_token)
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise
@@ -239,10 +224,7 @@ async def archive_event(event_db_id:int, reason:str):
     event_db_returning = {}
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get archive category
     if (archive_category := get_category.get_category(guild, settings.ARCHIVE_CATEGORY_ID)) is None:
@@ -250,30 +232,9 @@ async def archive_event(event_db_id:int, reason:str):
         raise HTTPException(500, f"Archive Category (id={settings.ARCHIVE_CATEGORY_ID}) not found")
     
     async with database.with_get_db() as session:
-        # try to lock the Event
-        try:
-            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-        except crud.NotFoundError:
-            raise HTTPException(404, f"Event (id={event_db_id}) not found")
-        except crud.LockedError:
-            raise HTTPException(423, f"Event (id={event_db_id}) was locked. Try again later.")
-        except Exception as e:
-            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
-            raise HTTPException(500, f"Can't lock Event (id={event_db_id})")
-        
+        event_db, lock_owner_token = await read_event_one_wrapper(session, event_db_id)
         try:
             async with session.begin():
-                # get a new event_db
-                events_db = await crud.read_event(
-                    session=session,
-                    archived=False, # ensure the Event isn't archived
-                    id=event_db_id,
-                    lock_owner_token=lock_owner_token,
-                )
-                if len(events_db) != 1:
-                    raise RuntimeError(f"Event (id={event_db_id}) not found")
-                event_db = events_db[0]
-                
                 # update database
                 event_db:model.Event = await crud.update_event(
                     session=session,
@@ -360,10 +321,7 @@ async def link_event_to_channel(event_db_id:int, channel_id:int):
     lock_owner_token = None
     
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # get channel
     if (channel := guild.get_channel(channel_id)) is None or \
@@ -371,30 +329,9 @@ async def link_event_to_channel(event_db_id:int, channel_id:int):
         raise HTTPException(400, f"Channel (id={channel_id}) not found")
     
     async with database.with_get_db() as session:
-        # try to lock the Event
-        try:
-            lock_owner_token = await crud.try_lock_event(session, event_db_id, 120)
-        except crud.NotFoundError:
-            raise HTTPException(404, f"Event (id={event_db_id}) not found")
-        except crud.LockedError:
-            raise HTTPException(423, f"Event (id={event_db_id}) was locked. Try again later.")
-        except Exception as e:
-            logger.error(f"Can't lock Event (id={event_db_id}): {str(e)}")
-            raise HTTPException(500, f"Can't lock Event (id={event_db_id})")
-        
+        event_db, lock_owner_token = await read_event_one_wrapper(session, event_db_id)
         try:
             async with session.begin():
-                # get a new event_db
-                events_db = await crud.read_event(
-                    session=session,
-                    archived=False, # ensure the Event isn't archived
-                    id=event_db_id,
-                    lock_owner_token=lock_owner_token
-                )
-                if len(events_db) != 1:
-                    raise RuntimeError(f"Event (id={event_db_id}) not found")
-                event_db = events_db[0]
-                
                 # update database
                 event_db:model.Event = await crud.update_event(
                     session=session,
@@ -428,10 +365,7 @@ async def create_custom_event(title:str):
     :raise HTTPException:
     """
     # get guild
-    bot = await get_bot()
-    if (guild := bot.get_guild(settings.GUILD_ID)) is None:
-        logger.critical(f"Guild (id={settings.GUILD_ID}) not found")
-        raise HTTPException(500, f"Guild (id={settings.GUILD_ID}) not found")
+    guild = get_guild()
     
     # create the custom event in database
     event_db_id = None

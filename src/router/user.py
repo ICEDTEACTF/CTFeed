@@ -22,11 +22,17 @@ router = APIRouter(prefix="/user", tags=["User"])
 # delete - (nope)
 
 @router.get("/")
-@router.get("/{discord_id}")
-async def read_user(
-    discord_id:Optional[int]=None,
+async def read_all_user(
     session:AsyncSession=Depends(fastapi_get_db),
     member:discord.Member=Depends(fastapi_check_user)
 ) -> List[schema.User]:
-    users = await user.get_user(session, discord_id)
-    return users
+    return (await user.get_user(session))
+
+
+@router.get("/{discord_id}")
+async def read_user(
+    discord_id:int,
+    session:AsyncSession=Depends(fastapi_get_db),
+    member:discord.Member=Depends(fastapi_check_user)
+) -> schema.User:
+    return (await user.get_user(session, discord_id))[0]

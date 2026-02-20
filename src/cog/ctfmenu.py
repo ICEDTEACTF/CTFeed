@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Dict
 import logging
 import math
 
@@ -31,13 +31,21 @@ def _format_channel_info(guild: Optional[discord.Guild], channel_id: Optional[in
 # views
 class EventMenu(discord.ui.View):
     def __init__(self, bot: commands.Bot, owner_id: int, type: Literal["ctftime", "custom"]):
-        super().__init__(timeout=None)
+        super().__init__(timeout=60)
         self.bot = bot
         self.owner_id = owner_id
         self.type = type
         self.page = 0
         self.per_page = 5
         self.events: List[model.Event] = []
+
+        self.ctftime_events_cache: List[model.Event] = []
+        self.ctftime_cache_ready = False
+
+        self.custom_before_id_history: List[Optional[int]] = [None]
+        self.custom_has_next = False
+        self.custom_page_cache: Dict[int, List[model.Event]] = {}
+        self.custom_page_has_next_cache: Dict[int, bool] = {}
 
 
     async def _check_permission(self, interaction: discord.Interaction) -> Optional[discord.Member]:
@@ -49,13 +57,20 @@ class EventMenu(discord.ui.View):
         return member
 
 
-    async def _refresh_view(self, total_pages: int):
-        self.prev_page.disabled = self.page <= 0
-        self.next_page.disabled = self.page >= total_pages - 1
+    async def _refresh_view(self, total_pages: Optional[int] = None):
+        if self.type == "ctftime":
+            self.prev_page.disabled = self.page <= 0
+            if total_pages is None:
+                raise RuntimeError("total_pages should not be None for ctftime menu")
+            self.next_page.disabled = self.page >= total_pages - 1
 
-        start = self.page * self.per_page
-        end = start + self.per_page
-        current = self.events[start:end]
+            start = self.page * self.per_page
+            end = start + self.per_page
+            current = self.events[start:end]
+        else:
+            self.prev_page.disabled = self.page <= 0
+            self.next_page.disabled = self.custom_has_next is False
+            current = self.events
 
         self.select_event.disabled = len(current) == 0
         if len(current) == 0:
@@ -85,39 +100,68 @@ class EventMenu(discord.ui.View):
     async def build_embed_and_view(self) -> discord.Embed:
         try:
             async with database.with_get_db() as session:
-                finish_after = None
                 if self.type == "ctftime":
-                    finish_after = int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp())
+                    if self.ctftime_cache_ready is False:
+                        self.ctftime_events_cache = await crud.read_event_many(
+                            session=session,
+                            type="ctftime",
+                            archived=False,
+                            limit=None,
+                            finish_after=int((datetime.now(timezone.utc) + timedelta(days=settings.DATABASE_SEARCH_DAYS)).timestamp()),
+                            finish_before=None,
+                            before_id=None,
+                        )
+                        self.ctftime_cache_ready = True
 
-                self.events = await crud.read_event(
-                    session=session,
-                    type=self.type,
-                    archived=False,
-                    finish_after=finish_after
-                )
+                    self.events = self.ctftime_events_cache
+                else:
+                    if self.page < 0:
+                        self.page = 0
+                    if self.page >= len(self.custom_before_id_history):
+                        self.page = len(self.custom_before_id_history) - 1
+
+                    if self.page in self.custom_page_cache:
+                        self.events = self.custom_page_cache[self.page]
+                        self.custom_has_next = self.custom_page_has_next_cache[self.page]
+                    else:
+                        before_id = self.custom_before_id_history[self.page]
+                        events = await crud.read_event_many(
+                            session=session,
+                            type="custom",
+                            archived=False,
+                            limit=self.per_page + 1,
+                            finish_after=None,
+                            finish_before=None,
+                            before_id=before_id,
+                        )
+                        self.custom_has_next = len(events) > self.per_page
+                        self.events = events[:self.per_page]
+                        self.custom_page_cache[self.page] = self.events
+                        self.custom_page_has_next_cache[self.page] = self.custom_has_next
         except Exception as e:
             logger.error(f"fail to read Events: {str(e)}")
             return discord.Embed(title="Fail to read events", color=discord.Color.red())
 
-        if self.type == "custom":
-            self.events = sorted(self.events, key=lambda e: e.id)
+        if self.type == "ctftime":
+            total_pages = max(1, math.ceil(len(self.events) / self.per_page))
+            if self.page >= total_pages:
+                self.page = total_pages - 1
+            if self.page < 0:
+                self.page = 0
 
-        total_pages = max(1, math.ceil(len(self.events) / self.per_page))
-        if self.page >= total_pages:
-            self.page = total_pages - 1
-        if self.page < 0:
-            self.page = 0
+            start = self.page * self.per_page
+            end = start + self.per_page
+            current = self.events[start:end]
+        else:
+            current = self.events
 
-        start = self.page * self.per_page
-        end = start + self.per_page
-        current = self.events[start:end]
-
+        display_start = self.page * self.per_page
         title = "CTFTime Events" if self.type == "ctftime" else "Custom Events"
         if len(current) == 0:
             description = "(No events)"
         else:
             lines = []
-            for idx, e in enumerate(current, start=start + 1):
+            for idx, e in enumerate(current, start=display_start + 1):
                 channel_created = "[⭐️ Channel created]" if e.channel_id is not None else ""
                 
                 if self.type == "ctftime":
@@ -138,9 +182,13 @@ class EventMenu(discord.ui.View):
             description = "\n".join(lines)
 
         embed = discord.Embed(title=title, description=description, color=discord.Color.green())
-        embed.set_footer(text=f"Page {self.page + 1}/{total_pages} | Total {len(self.events)}")
+        if self.type == "ctftime":
+            embed.set_footer(text=f"Page {self.page + 1}/{total_pages} | Total {len(self.events)}")
+            await self._refresh_view(total_pages)
+        else:
+            embed.set_footer(text=f"Page {self.page + 1}")
+            await self._refresh_view()
 
-        await self._refresh_view(total_pages)
         return embed
 
 
@@ -148,6 +196,10 @@ class EventMenu(discord.ui.View):
     async def prev_page(self, button: discord.ui.Button, interaction: discord.Interaction):
         if await self._check_permission(interaction) is None:
             return
+        if self.page <= 0:
+            await interaction.response.edit_message(view=self)
+            return
+
         self.page -= 1
         embed = await self.build_embed_and_view()
         await interaction.response.edit_message(embed=embed, view=self)
@@ -157,6 +209,14 @@ class EventMenu(discord.ui.View):
     async def next_page(self, button: discord.ui.Button, interaction: discord.Interaction):
         if await self._check_permission(interaction) is None:
             return
+        if self.type == "custom":
+            if len(self.events) == 0 or self.custom_has_next is False:
+                await interaction.response.edit_message(view=self)
+                return
+
+            if self.page + 1 >= len(self.custom_before_id_history):
+                self.custom_before_id_history.append(self.events[-1].id)
+
         self.page += 1
         embed = await self.build_embed_and_view()
         await interaction.response.edit_message(embed=embed, view=self)
@@ -211,7 +271,7 @@ class EventMenu(discord.ui.View):
 
 class EventDetailMenu(discord.ui.View):
     def __init__(self, bot: commands.Bot, owner_id: int, event_db_id: int, type: Literal["ctftime", "custom"]):
-        super().__init__(timeout=None)
+        super().__init__(timeout=60)
         self.bot = bot
         self.owner_id = owner_id
         self.event_db_id = event_db_id
@@ -230,15 +290,16 @@ class EventDetailMenu(discord.ui.View):
     async def _read_event(self) -> Optional[model.Event]:
         try:
             async with database.with_get_db() as session:
-                events = await crud.read_event(
+                event_db, _ = await crud.read_event_one(
                     session=session,
+                    lock=False,
                     type=self.type,
                     archived=False,
                     id=self.event_db_id
                 )
-                if len(events) != 1:
-                    return None
-                return events[0]
+                return event_db
+        except crud.NotFoundError:
+            return None
         except Exception as e:
             logger.error(f"fail to read Event (id={self.event_db_id}): {str(e)}")
             return None

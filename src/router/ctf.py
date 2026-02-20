@@ -1,7 +1,7 @@
 from typing import Optional, List, Literal
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 import discord
 
@@ -9,7 +9,9 @@ from src.database.database import fastapi_get_db
 from src.backend import security
 from src.backend import channel_op
 from src.backend import event as event_backend
+from src.bot import get_guild
 from src import schema
+from src import crud
 
 # logger
 logger = logging.getLogger("uvicorn")
@@ -35,26 +37,65 @@ async def create_custom_event(
 
 
 # read
-@router.get("/")
-async def read_event_all(
-    type:Literal["ctftime", "custom"],
+@router.get("/ctftime")
+async def read_all_ctftime_event(
     archived:Optional[bool]=None,
+    limit:int=Query(gt=0, le=20),
+    finish_before:Optional[int]=Query(ge=0, default=None),
+    before_id:Optional[int]=Query(ge=0, default=None),
     session:AsyncSession=Depends(fastapi_get_db),
-    member:discord.Member=Depends(security.fastapi_check_user)
+    member:discord.Member=Depends(security.fastapi_check_user),
 ) -> List[schema.Event]:
-    try:
-        events = await event_backend.get_event(
-            session=session,
-            type=type,
-            archived=archived
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"fail to read Events: {str(e)}")
-        raise HTTPException(500, "fail to read Events")
+    # argument check
+    first_page = (finish_before is None) and (before_id is None)
+    n_page = (finish_before is not None) and (before_id is not None)
+    if first_page == False and n_page == False:
+        raise HTTPException(400, "invalid finish_before and before_id")
     
-    return events
+    # get events from database
+    try:
+        events_db = await crud.read_event_many(
+            session=session,
+            type="ctftime",
+            archived=archived,
+            limit=limit,
+            finish_after=None,
+            finish_before=finish_before,
+            before_id=before_id
+        )
+    except Exception as e:
+        logger.error(f"fail to read Events from database: {str(e)}")
+        raise HTTPException(500, "fail to read Events from database")
+    
+    # format and return
+    return (await event_backend.format_event(get_guild(), events_db))
+
+
+@router.get("/custom")
+async def read_all_custom_event(
+    archived:Optional[bool]=None,
+    limit:int=Query(gt=0, le=20),
+    before_id:Optional[int]=Query(ge=0, default=None),
+    session:AsyncSession=Depends(fastapi_get_db),
+    member:discord.Member=Depends(security.fastapi_check_user),
+) -> List[schema.Event]:
+    # get events from database
+    try:
+        events_db = await crud.read_event_many(
+            session=session,
+            type="custom",
+            archived=archived,
+            limit=limit,
+            finish_after=None,
+            finish_before=None,
+            before_id=before_id
+        )
+    except Exception as e:
+        logger.error(f"fail to read Events from database: {str(e)}")
+        raise HTTPException(500, "fail to read Events from database")
+    
+    # format and return
+    return (await event_backend.format_event(get_guild(), events_db))
 
 
 @router.get("/{event_db_id}")
@@ -62,16 +103,22 @@ async def read_event(
     event_db_id:int,
     session:AsyncSession=Depends(fastapi_get_db),
     member:discord.Member=Depends(security.fastapi_check_user)
-) -> List[schema.Event]:
+) -> schema.Event:
+    # get event from database
     try:
-        events = await event_backend.get_event(session=session, id=event_db_id)
-    except HTTPException:
-        raise
+        event_db, _ = await crud.read_event_one(
+            session,
+            lock=False,
+            id=event_db_id
+        )
+    except crud.NotFoundError:
+        raise HTTPException(404, f"Event (id={event_db_id}) not found")
     except Exception as e:
-        logger.error(f"fail to read Events: {str(e)}")
-        raise HTTPException(500, "fail to read Events")
+        logger.error(f"fail to read Event (id={event_db_id}) from database: {str(e)}")
+        raise HTTPException(500, f"fail to read Event (id={event_db_id}) from database")
     
-    return events
+    # format and return
+    return (await event_backend.format_event(get_guild(), [event_db]))[0]
 
 
 # update - join
