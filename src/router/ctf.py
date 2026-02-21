@@ -160,7 +160,7 @@ async def archive_event(
 async def relink_event(
     event_db_id:int,
     data:schema.RelinkEvent,
-    member:discord.Member=Depends(security.fastapi_check_pm_user)
+    member:discord.Member=Depends(security.fastapi_check_administrator)
 ) -> schema.General:
     try:
         await channel_op.link_event_to_channel(event_db_id, data.channel_id)

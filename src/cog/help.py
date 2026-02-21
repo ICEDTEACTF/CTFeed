@@ -55,6 +55,7 @@ class HelpMenu(discord.ui.View):
             value="\n".join(commands_info),
             inline=False
         )
+        embed.set_footer(text=f"Commit: {settings.COMMIT_ID}")
 
         return embed
 
